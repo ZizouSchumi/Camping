@@ -1,0 +1,35 @@
+# Godot 4.x — fichiers générés automatiquement
+.godot/
+*.translation
+
+# Export / builds
+build/
+export/
+*.exe
+*.x86_64
+*.apk
+*.aab
+*.ipa
+
+# Fichiers temporaires Godot
+*.import
+
+# Fichiers d'environnement local
+.env
+.env.local
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+.vscode/
+*.suo
+*.user
+
+# GodotSteam / SDK Steam
+steam_api.dll
+steam_api64.dll
+libsteam_api.so
+libsteam_api.dylib
