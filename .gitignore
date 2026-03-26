@@ -38,3 +38,19 @@ libsteam_api.dylib
 sdkencryptedappticket.dll
 sdkencryptedappticket64.dll
 redistrib/
+
+# Claude Code
+.claude/
+memory/
+
+# BMAD
+_bmad/
+_bmad-output/
+
+# Captures d'écran
+*.png
+*.jpg
+*.jpeg
+!addons/gut/images/*.png
+!addons/gut/gui/*.png
+!addons/gut/icon.png
