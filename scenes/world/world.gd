@@ -9,6 +9,10 @@ const PlacementPreviewScript := preload("res://scenes/ui/construction/placement_
 const TimeControllerScript := preload("res://scenes/ui/hud/time_controller.gd")
 const SpeedHUDScript := preload("res://scenes/ui/hud/speed_hud.gd")
 const SettingsPanelScript := preload("res://scenes/ui/panels/settings_panel.gd")
+const CampeurScene := preload("res://scenes/campeurs/campeur.tscn")
+const IDGeneratorScript := preload("res://scripts/utils/id_generator.gd")
+
+@export var debug_spawn_campeur: bool = false
 
 
 func _ready() -> void:
@@ -17,6 +21,22 @@ func _ready() -> void:
 	_setup_placement_preview()
 	_setup_hud()
 	_setup_settings_panel()
+	if debug_spawn_campeur:
+		_spawn_test_campeur()
+
+
+func _spawn_test_campeur() -> void:
+	var data := CampeurData.new()
+	data.campeur_id = IDGeneratorScript.generate_campeur_id()
+	data.prenom = "Marcel"
+	data.age = 45
+	data.genre = "homme"
+	data.date_arrivee = SeasonManager.current_time
+	data.date_depart_prevue = SeasonManager.current_time + 7.0
+
+	var campeur := CampeurScene.instantiate()
+	add_child(campeur)
+	campeur.initialize(data, GridSystem.grid_to_world(Vector2i(3, 3)))
 
 
 func _setup_hud() -> void:
