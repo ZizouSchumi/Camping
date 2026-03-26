@@ -15,7 +15,7 @@ func after_each() -> void:
 func test_subscribe_et_emit_basic() -> void:
 	var received_payload: Dictionary = {}
 	var callback := func(payload: Dictionary) -> void:
-		received_payload = payload
+		received_payload.merge(payload, true)
 
 	_event_bus.subscribe("test.action", callback)
 	_event_bus.emit("test.action", {"entite_id": "c_001", "value": 42})
@@ -26,33 +26,33 @@ func test_subscribe_et_emit_basic() -> void:
 func test_emit_sans_subscriber_ne_crash_pas() -> void:
 	# Ne doit pas lever d'erreur
 	_event_bus.emit("evenement.inexistant", {})
-	pass_test()
+	pass_test("emit sans subscriber ne doit pas crasher")
 
 func test_unsubscribe_arrete_reception() -> void:
-	var count := 0
+	var count := [0]
 	var callback := func(_payload: Dictionary) -> void:
-		count += 1
+		count[0] += 1
 
 	_event_bus.subscribe("test.compteur", callback)
 	_event_bus.emit("test.compteur", {})
-	assert_eq(count, 1, "Doit recevoir 1 événement après subscribe")
+	assert_eq(count[0], 1, "Doit recevoir 1 événement après subscribe")
 
 	_event_bus.unsubscribe("test.compteur", callback)
 	_event_bus.emit("test.compteur", {})
-	assert_eq(count, 1, "Ne doit plus recevoir après unsubscribe")
+	assert_eq(count[0], 1, "Ne doit plus recevoir après unsubscribe")
 
 func test_multiple_subscribers_meme_evenement() -> void:
-	var count := 0
-	var cb1 := func(_p: Dictionary) -> void: count += 1
-	var cb2 := func(_p: Dictionary) -> void: count += 1
+	var count := [0]
+	var cb1 := func(_p: Dictionary) -> void: count[0] += 1
+	var cb2 := func(_p: Dictionary) -> void: count[0] += 1
 
 	_event_bus.subscribe("test.multi", cb1)
 	_event_bus.subscribe("test.multi", cb2)
 	_event_bus.emit("test.multi", {})
 
-	assert_eq(count, 2, "Les deux subscribers doivent recevoir l'événement")
+	assert_eq(count[0], 2, "Les deux subscribers doivent recevoir l'événement")
 
 func test_unsubscribe_inexistant_ne_crash_pas() -> void:
 	var callback := func(_p: Dictionary) -> void: pass
 	_event_bus.unsubscribe("evenement.inexistant", callback)
-	pass_test()
+	pass_test("unsubscribe inexistant ne doit pas crasher")

@@ -7,7 +7,7 @@ extends Node
 var _registered_campeurs: Array[String] = []
 
 
-func _process(delta: float) -> void:
+func _process(_delta: float) -> void:
 	# Stub — implémenté en E02 (S2.2)
 	pass
 

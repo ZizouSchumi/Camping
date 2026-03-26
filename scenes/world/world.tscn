@@ -1,6 +1,7 @@
-[gd_scene load_steps=2 format=3 uid="uid://camping_world_main"]
+[gd_scene format=3 uid="uid://d11384rmphjtk"]
 
-[ext_resource type="Script" path="res://scenes/world/world.gd" id="1_world_script"]
+[ext_resource type="Script" uid="uid://doagwulhvvaff" path="res://scenes/world/world.gd" id="1_world_script"]
 
-[node name="World" type="Node2D"]
+[node name="World" type="Node2D" unique_id=1553381223]
+position = Vector2(3, 4)
 script = ExtResource("1_world_script")

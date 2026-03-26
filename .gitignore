@@ -28,8 +28,13 @@ Thumbs.db
 *.suo
 *.user
 
-# GodotSteam / SDK Steam
+# GodotSteam / SDK Steam — binaires uniquement (steam_appid.txt versionné volontairement)
 steam_api.dll
 steam_api64.dll
+steam_api.lib
+steam_api64.lib
 libsteam_api.so
 libsteam_api.dylib
+sdkencryptedappticket.dll
+sdkencryptedappticket64.dll
+redistrib/
