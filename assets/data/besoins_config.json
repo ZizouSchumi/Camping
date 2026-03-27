@@ -1,1 +1,85 @@
-{}
+{
+  "besoins": [
+    {
+      "id": "faim",
+      "niveau": "primaire",
+      "valeur_initiale": 0.85,
+      "taux_decay": 0.0020,
+      "seuil_critique": 0.2,
+      "seuil_eleve": 0.4,
+      "seuil_satisfait": 0.7
+    },
+    {
+      "id": "soif",
+      "niveau": "primaire",
+      "valeur_initiale": 0.90,
+      "taux_decay": 0.0025,
+      "seuil_critique": 0.2,
+      "seuil_eleve": 0.4,
+      "seuil_satisfait": 0.7
+    },
+    {
+      "id": "sommeil",
+      "niveau": "primaire",
+      "valeur_initiale": 0.95,
+      "taux_decay": 0.0010,
+      "seuil_critique": 0.2,
+      "seuil_eleve": 0.4,
+      "seuil_satisfait": 0.7
+    },
+    {
+      "id": "socialiser",
+      "niveau": "secondaire",
+      "valeur_initiale": 0.80,
+      "taux_decay": 0.0012,
+      "seuil_critique": 0.15,
+      "seuil_eleve": 0.35,
+      "seuil_satisfait": 0.65
+    },
+    {
+      "id": "divertissement",
+      "niveau": "secondaire",
+      "valeur_initiale": 0.75,
+      "taux_decay": 0.0015,
+      "seuil_critique": 0.15,
+      "seuil_eleve": 0.35,
+      "seuil_satisfait": 0.65
+    },
+    {
+      "id": "activite_physique",
+      "niveau": "secondaire",
+      "valeur_initiale": 0.70,
+      "taux_decay": 0.0008,
+      "seuil_critique": 0.15,
+      "seuil_eleve": 0.35,
+      "seuil_satisfait": 0.65
+    },
+    {
+      "id": "bien_etre",
+      "niveau": "tertiaire",
+      "valeur_initiale": 0.80,
+      "taux_decay": 0.0005,
+      "seuil_critique": 0.10,
+      "seuil_eleve": 0.30,
+      "seuil_satisfait": 0.60
+    },
+    {
+      "id": "accomplissement",
+      "niveau": "tertiaire",
+      "valeur_initiale": 0.70,
+      "taux_decay": 0.0004,
+      "seuil_critique": 0.10,
+      "seuil_eleve": 0.30,
+      "seuil_satisfait": 0.60
+    },
+    {
+      "id": "confort_emotionnel",
+      "niveau": "tertiaire",
+      "valeur_initiale": 0.75,
+      "taux_decay": 0.0006,
+      "seuil_critique": 0.10,
+      "seuil_eleve": 0.30,
+      "seuil_satisfait": 0.60
+    }
+  ]
+}
