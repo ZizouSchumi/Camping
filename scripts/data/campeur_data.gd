@@ -12,11 +12,9 @@ class_name CampeurData extends Resource
 @export var date_depart_prevue: float = 0.0
 @export var emplacement_id: String = ""
 
+var besoins: Dictionary = {}  # besoin_id → BesoinData — initialisé et mis à jour exclusivement par NeedsSystem
+var personnalite: PersonnaliteData = null  # Assignée par NeedsSystem._initialiser_personnalite() — null avant register_campeur
+
 
 func is_valid() -> bool:
 	return campeur_id != "" and prenom != ""
-
-
-# Stubs pour stories futures (commentés pour éviter les dépendances circulaires) :
-# var besoins: Array[BesoinInstance] = []     # S2.2 — Système de besoins
-# var personnalite: PersonnaliteData = null   # S2.3 — Système de personnalité

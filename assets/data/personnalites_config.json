@@ -1,1 +1,20 @@
-{}
+{
+  "axes": [
+    {"id": "sociabilite",  "label": "Sociabilité",  "default": 0.5, "description": "0=solitaire, 1=très sociable"},
+    {"id": "vitalite",     "label": "Vitalité",     "default": 0.5, "description": "0=sédentaire, 1=très actif"},
+    {"id": "appetit",      "label": "Appétit",      "default": 0.5, "description": "0=petit appétit, 1=grand appétit"},
+    {"id": "exigence",     "label": "Exigence",     "default": 0.5, "description": "0=peu exigeant, 1=très exigeant"},
+    {"id": "zenitude",     "label": "Zénitude",     "default": 0.5, "description": "0=stressé, 1=très zen"}
+  ],
+  "poids_besoins": {
+    "faim":               {"axe": "appetit",      "min_poids": 0.5, "max_poids": 1.5},
+    "soif":               {"axe": "appetit",      "min_poids": 0.5, "max_poids": 1.5},
+    "sommeil":            {"axe": "zenitude",     "min_poids": 0.8, "max_poids": 1.2},
+    "socialiser":         {"axe": "sociabilite",  "min_poids": 0.2, "max_poids": 1.8},
+    "divertissement":     {"axe": "vitalite",     "min_poids": 0.5, "max_poids": 1.5},
+    "activite_physique":  {"axe": "vitalite",     "min_poids": 0.3, "max_poids": 1.7},
+    "bien_etre":          {"axe": "exigence",     "min_poids": 0.5, "max_poids": 1.5},
+    "accomplissement":    {"axe": "exigence",     "min_poids": 0.3, "max_poids": 1.7},
+    "confort_emotionnel": {"axe": "sociabilite",  "min_poids": 0.4, "max_poids": 1.6}
+  }
+}
