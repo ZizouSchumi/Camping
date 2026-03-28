@@ -13,13 +13,14 @@ var _personnalite_config: Dictionary = {} # Chargé depuis personnalites_config.
 var _time_scale: float = 1.0              # Synchronisé via EventBus, PAS SeasonManager
 var _paused: bool = false                 # Synchronisé via EventBus, PAS SeasonManager
 var _elapsed_game_time: float = 0.0       # Équivalent local de SeasonManager.current_time
-                                          # TODO S3+: synchroniser depuis SaveSystem.load_game() pour éviter
-                                          # la désync des timestamps "besoin.critique" après rechargement de save
-                                          # TODO S3+: après load_game(), rappeler register_campeur() (ou
-                                          # initialiser_personnalite()) pour chaque campeur chargé — BesoinData.modificateur_decay
+										  # TODO S3+: synchroniser depuis SaveSystem.load_game() pour éviter
+										  # la désync des timestamps "besoin.critique" après rechargement de save
+										  # TODO S3+: après load_game(), rappeler register_campeur() (ou
+										  # initialiser_personnalite()) pour chaque campeur chargé — BesoinData.modificateur_decay
 										  # n'est pas @export donc non persisté ; doit être recalculé depuis CampeurData.personnalite
 var _critique_notified: Dictionary = {}   # campeur_id → Array[String] de besoin_ids en état critique
 var _lod_factors: Dictionary = {}         # campeur_id → float (1.0 = full update, < 1.0 = réduit)
+var _state_machines: Dictionary = {}      # campeur_id → StateMachine (S2.5)
 # Buffers pré-alloués pour get_besoin_prioritaire — évite les allocs GC dans la boucle AI (S2.5)
 var _prio_primaires: Array[BesoinData] = []
 var _prio_secondaires: Array[BesoinData] = []
@@ -30,6 +31,7 @@ func _ready() -> void:
 	_load_besoins_config()
 	_load_personnalites_config()
 	EventBus.subscribe("jeu.vitesse_change", _on_vitesse_change)
+	EventBus.subscribe("campeur.destination_atteinte", _on_destination_atteinte)
 
 
 func _load_besoins_config() -> void:
@@ -87,12 +89,16 @@ func register_campeur(campeur_id: String) -> void:
 	_lod_factors[campeur_id] = 1.0
 	_initialiser_besoins(campeur_id)
 	_initialiser_personnalite(campeur_id)
+	var sm := StateMachine.new()
+	sm.timer = randf_range(0.0, StateMachine.DECISION_INTERVAL)
+	_state_machines[campeur_id] = sm
 
 
 func unregister_campeur(campeur_id: String) -> void:
 	_registered_campeurs.erase(campeur_id)
 	_critique_notified.erase(campeur_id)
 	_lod_factors.erase(campeur_id)
+	_state_machines.erase(campeur_id)
 
 
 func _initialiser_personnalite(campeur_id: String) -> void:
@@ -167,6 +173,58 @@ func _update_campeur(campeur_id: String, game_delta: float) -> void:
 		var besoin: BesoinData = data.besoins[besoin_id]
 		besoin.valeur_actuelle = maxf(0.0, besoin.valeur_actuelle - besoin.taux_decay * besoin.modificateur_decay * game_delta)
 		_check_etat_critique(campeur_id, besoin)
+	# Tick AI (S2.5)
+	if not _state_machines.has(campeur_id):
+		return
+	var sm: StateMachine = _state_machines[campeur_id]
+	sm.timer += game_delta
+	match sm.etat:
+		StateMachine.Etat.IDLE:
+			if sm.timer >= StateMachine.DECISION_INTERVAL:
+				_evaluer_et_agir(campeur_id)
+		StateMachine.Etat.WALKING:
+			if sm.timer >= StateMachine.MAX_WALK_TIME:
+				sm.transition_vers(StateMachine.Etat.IDLE)
+		StateMachine.Etat.ATTENDING:
+			pass  # Transitoire instantané — géré dans _on_destination_atteinte
+
+
+func _evaluer_et_agir(campeur_id: String) -> void:
+	if not _state_machines.has(campeur_id):
+		return
+	var besoin := get_besoin_prioritaire(campeur_id)
+	var sm: StateMachine = _state_machines[campeur_id]
+	if besoin == null:
+		sm.timer = 0.0
+		return
+	var destination := _get_wander_destination()
+	sm.transition_vers(StateMachine.Etat.WALKING)
+	sm.besoin_cible = besoin.besoin_id
+	EventBus.emit("campeur.deplacer_vers", {
+		"entite_id": campeur_id,
+		"position": destination,
+		"besoin_id": besoin.besoin_id,
+		"timestamp": _elapsed_game_time,
+	})
+
+
+func _on_destination_atteinte(payload: Dictionary) -> void:
+	var campeur_id: String = payload.get("entite_id", "")
+	if not _state_machines.has(campeur_id):
+		return
+	var sm: StateMachine = _state_machines[campeur_id]
+	if sm.etat != StateMachine.Etat.WALKING:
+		return
+	sm.transition_vers(StateMachine.Etat.ATTENDING)
+	if sm.besoin_cible != "":
+		satisfaire_besoin(campeur_id, sm.besoin_cible, StateMachine.SATISFACTION_QUANTITE)
+	sm.transition_vers(StateMachine.Etat.IDLE)
+
+
+func _get_wander_destination() -> Vector2:
+	var cell_x := floorf(randf_range(1.0, float(GridSystem.MAP_CELLS - 1)))
+	var cell_y := floorf(randf_range(1.0, float(GridSystem.MAP_CELLS - 1)))
+	return GridSystem.grid_to_world(Vector2i(int(cell_x), int(cell_y)))
 
 
 func _check_etat_critique(campeur_id: String, besoin: BesoinData) -> void:

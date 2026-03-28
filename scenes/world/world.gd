@@ -14,6 +14,8 @@ const IDGeneratorScript := preload("res://scripts/utils/id_generator.gd")
 
 @export var debug_spawn_campeur: bool = false
 
+var _test_campeur = null  # Campeur — non typé pour éviter le problème de scope class_name
+
 
 func _ready() -> void:
 	_setup_camera()
@@ -23,6 +25,22 @@ func _ready() -> void:
 	_setup_settings_panel()
 	if debug_spawn_campeur:
 		_spawn_test_campeur()
+
+
+func _unhandled_input(event: InputEvent) -> void:
+	if not debug_spawn_campeur:
+		return
+	if not event is InputEventMouseButton:
+		return
+	if not event.pressed or event.button_index != MOUSE_BUTTON_LEFT:
+		return
+	if _test_campeur == null:
+		return
+	var camera := get_viewport().get_camera_2d()
+	if camera == null:
+		return
+	var world_pos: Vector2 = get_viewport().get_canvas_transform().affine_inverse() * event.position
+	_test_campeur.move_to(world_pos)
 
 
 func _spawn_test_campeur() -> void:
@@ -37,6 +55,7 @@ func _spawn_test_campeur() -> void:
 	var campeur := CampeurScene.instantiate()
 	add_child(campeur)
 	campeur.initialize(data, GridSystem.grid_to_world(Vector2i(3, 3)))
+	_test_campeur = campeur
 
 
 func _setup_hud() -> void:
