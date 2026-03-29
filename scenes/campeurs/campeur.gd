@@ -37,6 +37,7 @@ func initialize(data: CampeurData, spawn_position: Vector2 = Vector2.ZERO) -> vo
 	GameData.campeurs[campeur_id] = data
 	NeedsSystem.register_campeur(campeur_id)
 	EventBus.subscribe("campeur.deplacer_vers", _on_deplacer_vers)
+	$EmoteDisplay.setup(campeur_id)
 
 	# Événement d'arrivée
 	EventBus.emit("campeur.arrive", {

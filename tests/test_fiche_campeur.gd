@@ -103,6 +103,19 @@ func test_portrait_genre_autre() -> void:
 	assert_true(pixel.g > 0.5 and pixel.r < 0.5, "Portrait autre = couleur verte (G dominant)")
 
 
+func test_emote_label_apres_initialize() -> void:
+	_fiche.initialize({"campeur_id": _test_campeur_id})
+	assert_not_null(_fiche._emote_label, "_emote_label non null après initialize()")
+	assert_false(_fiche._emote_label.text == "", "_emote_label non vide après initialize()")
+
+
+func test_emote_label_besoin_prioritaire() -> void:
+	var data: CampeurData = GameData.campeurs[_test_campeur_id]
+	data.besoins["faim"].valeur_actuelle = 0.3  # sous seuil_satisfait=0.7 → prioritaire
+	_fiche.initialize({"campeur_id": _test_campeur_id})
+	assert_true(_fiche._emote_label.text.contains("faim"), "Label emote contient l'id du besoin prioritaire")
+
+
 func test_ui_manager_open_idempotent() -> void:
 	UIManager.open("campeur_fiche", {"campeur_id": _test_campeur_id})
 	UIManager.open("campeur_fiche", {"campeur_id": _test_campeur_id})

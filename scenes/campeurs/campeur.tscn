@@ -1,6 +1,7 @@
 [gd_scene format=3 uid="uid://campeur_scene_001"]
 
 [ext_resource type="Script" path="res://scenes/campeurs/campeur.gd" id="1_campeur_script"]
+[ext_resource type="Script" path="res://scenes/campeurs/emote_display.gd" id="2_emote_script"]
 
 [sub_resource type="CircleShape2D" id="CircleShape2D_1"]
 radius = 20.0
@@ -25,5 +26,8 @@ theme_override_font_sizes/font_size = 10
 shape = SubResource("CircleShape2D_1")
 
 [node name="NavigationAgent2D" type="NavigationAgent2D" parent="."]
+
+[node name="EmoteDisplay" type="Node2D" parent="."]
+script = ExtResource("2_emote_script")
 
 [connection signal="input_event" from="Area2D" to="." method="_on_area_2d_input_event"]

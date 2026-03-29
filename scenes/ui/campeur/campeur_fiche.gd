@@ -1,6 +1,7 @@
 class_name CampeurFiche extends PanelContainer
 
 # scenes/ui/campeur/campeur_fiche.gd
+const _EmoteDisplay := preload("res://scenes/campeurs/emote_display.gd")
 # Panneau fiche campeur — ouvert via UIManager.open("campeur_fiche", {"campeur_id": id})
 # Lecture seule : jamais de modification directe des données — UI read-only
 
@@ -12,6 +13,7 @@ var _besoins_container: VBoxContainer
 var _section_personnalite: VBoxContainer
 var _axe_labels: Dictionary = {}  # axe_id → Label
 var _portrait_rect: TextureRect   # S2.7 — portrait campeur (couleur procédurale → S15 : image IA)
+var _emote_label: Label
 
 
 func _ready() -> void:
@@ -88,8 +90,18 @@ func _build_ui() -> void:
 		_section_personnalite.add_child(lbl)
 		_axe_labels[axe_id] = lbl
 
+	# ── Section État émotionnel (S2.8) ──
+	var emote_section := VBoxContainer.new()
+	var titre_emote := Label.new()
+	titre_emote.text = "─ État émotionnel ─"
+	emote_section.add_child(titre_emote)
+	_emote_label = Label.new()
+	_emote_label.name = "EmoteLabel"
+	_emote_label.text = "—"
+	emote_section.add_child(_emote_label)
+	vbox.add_child(emote_section)
+
 	# ── Placeholders enrichissement progressif ──
-	vbox.add_child(_make_placeholder("Emotes flottantes (S2.8)", Vector2(0.0, 40.0)))
 	vbox.add_child(_make_placeholder("Journal de séjour (E05)", Vector2(0.0, 40.0)))
 
 
@@ -119,6 +131,7 @@ func initialize(panel_data: Dictionary) -> void:
 	_fill_identite(data)
 	_fill_besoins(data)
 	_fill_personnalite(data)
+	_fill_emote(data)
 
 
 func _generate_portrait(data: CampeurData) -> ImageTexture:
@@ -164,6 +177,15 @@ func _fill_besoins(data: CampeurData) -> void:
 			var ligne := Label.new()
 			ligne.text = besoin_id + " : " + str(pct) + " % (" + besoin.get_etat() + ")"
 			_besoins_container.add_child(ligne)
+
+
+func _fill_emote(data: CampeurData) -> void:
+	var besoin: BesoinData = NeedsSystem.get_besoin_prioritaire(data.campeur_id)
+	if besoin == null:
+		_emote_label.text = "✅ Tous les besoins satisfaits"
+		return
+	var emoji: String = _EmoteDisplay.EMOTES.get(besoin.besoin_id, "❓")
+	_emote_label.text = emoji + " " + besoin.besoin_id + " (" + besoin.get_etat() + ")"
 
 
 func _fill_personnalite(data: CampeurData) -> void:
