@@ -35,34 +35,72 @@ func after_each() -> void:
 
 
 func test_initialize_valide() -> void:
-	_fiche.initialize(_test_campeur_id)
+	_fiche.initialize({"campeur_id": _test_campeur_id})
 	assert_eq(_fiche._label_prenom.text, "Marcel", "Prénom affiché correctement")
 	assert_eq(_fiche._label_age.text, "45 ans", "Age affiché correctement")
 	assert_eq(_fiche._label_genre.text, "homme", "Genre affiché correctement")
 
 
 func test_initialize_campeur_inconnu() -> void:
-	_fiche.initialize("c_inexistant_xyz")
+	_fiche.initialize({"campeur_id": "c_inexistant_xyz"})
 	assert_push_error_count(1, "push_error attendu pour campeur_id inconnu")
 
 
 func test_initialize_personnalite_null() -> void:
 	var data: CampeurData = GameData.campeurs[_test_campeur_id]
 	data.personnalite = null
-	_fiche.initialize(_test_campeur_id)
+	_fiche.initialize({"campeur_id": _test_campeur_id})
 	assert_false(_fiche._section_personnalite.visible, "Section personnalité masquée si null")
 
 
 func test_calcul_duree_sejour() -> void:
-	_fiche.initialize(_test_campeur_id)
+	_fiche.initialize({"campeur_id": _test_campeur_id})
 	assert_eq(_fiche._label_sejour.text, "7 jour(s)", "Durée de séjour calculée correctement")
 
 
 func test_duree_sejour_inconnue() -> void:
 	var data: CampeurData = GameData.campeurs[_test_campeur_id]
 	data.date_depart_prevue = 0.0  # depart <= arrivee → durée nulle
-	_fiche.initialize(_test_campeur_id)
+	_fiche.initialize({"campeur_id": _test_campeur_id})
 	assert_eq(_fiche._label_sejour.text, "Durée inconnue", "'Durée inconnue' si depart <= arrivee")
+
+
+func test_portrait_non_null_apres_initialize() -> void:
+	_fiche.initialize({"campeur_id": _test_campeur_id})
+	assert_not_null(_fiche._portrait_rect.texture, "Texture portrait non nulle après initialize")
+
+
+func test_portrait_genre_homme() -> void:
+	var data: CampeurData = GameData.campeurs[_test_campeur_id]
+	data.genre = "homme"
+	_fiche.initialize({"campeur_id": _test_campeur_id})
+	var tex := _fiche._portrait_rect.texture as ImageTexture
+	assert_not_null(tex, "Texture portrait non nulle")
+	var img := tex.get_image()
+	var pixel := img.get_pixel(32, 32)
+	assert_true(pixel.b > 0.5 and pixel.r < 0.5, "Portrait homme = couleur bleue")
+
+
+func test_portrait_genre_femme() -> void:
+	var data: CampeurData = GameData.campeurs[_test_campeur_id]
+	data.genre = "femme"
+	_fiche.initialize({"campeur_id": _test_campeur_id})
+	var tex := _fiche._portrait_rect.texture as ImageTexture
+	assert_not_null(tex, "Texture portrait non nulle")
+	var img := tex.get_image()
+	var pixel := img.get_pixel(32, 32)
+	assert_true(pixel.r > 0.5 and pixel.g < 0.5 and pixel.b < 0.5, "Portrait femme = couleur rose (R dominant)")
+
+
+func test_portrait_genre_autre() -> void:
+	var data: CampeurData = GameData.campeurs[_test_campeur_id]
+	data.genre = "autre"
+	_fiche.initialize({"campeur_id": _test_campeur_id})
+	var tex := _fiche._portrait_rect.texture as ImageTexture
+	assert_not_null(tex, "Texture portrait non nulle")
+	var img := tex.get_image()
+	var pixel := img.get_pixel(32, 32)
+	assert_true(pixel.g > 0.5 and pixel.r < 0.5, "Portrait autre = couleur verte (G dominant)")
 
 
 func test_ui_manager_open_idempotent() -> void:

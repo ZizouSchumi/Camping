@@ -34,7 +34,7 @@ func open(panel_name: String, data: Dictionary = {}) -> void:
 	_canvas_layer.add_child(panel)
 	_panels[panel_name] = panel
 	if panel.has_method("initialize"):
-		panel.initialize(data.get("campeur_id", ""))
+		panel.initialize(data)
 
 
 func close(panel_name: String) -> void:

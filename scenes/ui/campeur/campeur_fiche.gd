@@ -11,6 +11,7 @@ var _label_sejour: Label
 var _besoins_container: VBoxContainer
 var _section_personnalite: VBoxContainer
 var _axe_labels: Dictionary = {}  # axe_id → Label
+var _portrait_rect: TextureRect   # S2.7 — portrait campeur (couleur procédurale → S15 : image IA)
 
 
 func _ready() -> void:
@@ -43,8 +44,10 @@ func _build_ui() -> void:
 	var header := HBoxContainer.new()
 	vbox.add_child(header)
 
-	var portrait := _make_placeholder("Portrait\n(S2.7)", Vector2(64.0, 64.0))
-	header.add_child(portrait)
+	_portrait_rect = TextureRect.new()
+	_portrait_rect.custom_minimum_size = Vector2(64.0, 64.0)
+	_portrait_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	header.add_child(_portrait_rect)
 
 	var identite := VBoxContainer.new()
 	identite.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -105,14 +108,31 @@ func _make_placeholder(text: String, min_size: Vector2 = Vector2(0.0, 40.0)) -> 
 	return panel
 
 
-func initialize(campeur_id: String) -> void:
+func initialize(panel_data: Dictionary) -> void:
+	var campeur_id: String = panel_data.get("campeur_id", "")
 	if not GameData.campeurs.has(campeur_id):
 		push_error("CampeurFiche.initialize: campeur_id introuvable — " + campeur_id)
 		return
 	var data: CampeurData = GameData.campeurs[campeur_id]
+	if _portrait_rect != null:
+		_portrait_rect.texture = _generate_portrait(data)
 	_fill_identite(data)
 	_fill_besoins(data)
 	_fill_personnalite(data)
+
+
+func _generate_portrait(data: CampeurData) -> ImageTexture:
+	var img := Image.create(64, 64, false, Image.FORMAT_RGB8)
+	var color: Color
+	match data.genre:
+		"homme":
+			color = Color(0.29, 0.565, 0.855)
+		"femme":
+			color = Color(0.855, 0.29, 0.478)
+		_:
+			color = Color(0.29, 0.855, 0.478)
+	img.fill(color)
+	return ImageTexture.create_from_image(img)
 
 
 func _fill_identite(data: CampeurData) -> void:
