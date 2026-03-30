@@ -61,9 +61,19 @@ func get_entity_at(pos: Vector2i) -> String:
 	return _grid[pos]
 
 
-func get_nearest(_pos: Vector2i, _type: String) -> Vector2i:
-	# Stub — implémenté en E03
-	return Vector2i(-1, -1)
+func get_nearest(pos: Vector2i, type: String) -> Vector2i:
+	var meilleur_pos := Vector2i(-1, -1)
+	var meilleure_dist: int = 9999999
+	for batiment_id in GameData.batiments:
+		var data: BatimentData = GameData.batiments[batiment_id]
+		if data.type_id == type:
+			var cx: int = data.grid_pos.x + int(data.size.x * 0.5)
+			var cy: int = data.grid_pos.y + int(data.size.y * 0.5)
+			var dist: int = absi(cx - pos.x) + absi(cy - pos.y)
+			if dist < meilleure_dist:
+				meilleure_dist = dist
+				meilleur_pos = data.grid_pos
+	return meilleur_pos
 
 
 func remove(pos: Vector2i, size: Vector2i) -> void:

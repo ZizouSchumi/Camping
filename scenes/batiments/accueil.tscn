@@ -1,0 +1,6 @@
+[gd_scene format=3 uid="uid://b3np8kvr2dxm4"]
+
+[ext_resource type="Script" path="res://scenes/batiments/accueil.gd" id="1_accueil_script"]
+
+[node name="Accueil" type="Node2D"]
+script = ExtResource("1_accueil_script")

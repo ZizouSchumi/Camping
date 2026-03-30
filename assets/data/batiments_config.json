@@ -1,1 +1,46 @@
-{}
+{
+  "batiments": {
+    "accueil": {
+      "label": "Accueil",
+      "size": [3, 2],
+      "couleur": [0.18, 0.48, 0.82, 0.85],
+      "couleur_contour": [0.05, 0.25, 0.55, 1.0],
+      "capacite_max": 1
+    },
+    "emplacement": {
+      "label": "Emplacement",
+      "size": [2, 2],
+      "couleur": [0.55, 0.55, 0.55, 0.85],
+      "couleur_contour": [0.2, 0.2, 0.2, 1.0],
+      "capacite_max": 1
+    },
+    "sanitaires": {
+      "label": "Sanitaires",
+      "size": [2, 3],
+      "couleur": [0.55, 0.55, 0.55, 0.85],
+      "couleur_contour": [0.2, 0.2, 0.2, 1.0],
+      "capacite_max": 2
+    },
+    "snack": {
+      "label": "Snack",
+      "size": [3, 3],
+      "couleur": [0.55, 0.55, 0.55, 0.85],
+      "couleur_contour": [0.2, 0.2, 0.2, 1.0],
+      "capacite_max": 3
+    },
+    "piscine": {
+      "label": "Piscine",
+      "size": [5, 4],
+      "couleur": [0.55, 0.55, 0.55, 0.85],
+      "couleur_contour": [0.2, 0.2, 0.2, 1.0],
+      "capacite_max": 10
+    },
+    "chemin": {
+      "label": "Chemin",
+      "size": [1, 1],
+      "couleur": [0.55, 0.55, 0.55, 0.85],
+      "couleur_contour": [0.2, 0.2, 0.2, 1.0],
+      "capacite_max": 0
+    }
+  }
+}

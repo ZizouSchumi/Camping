@@ -13,6 +13,11 @@ const CampeurScene := preload("res://scenes/campeurs/campeur.tscn")
 const IDGeneratorScript := preload("res://scripts/utils/id_generator.gd")
 const ConstructionMenuScript := preload("res://scenes/ui/construction/construction_menu.gd")
 const BatimentBaseScene := preload("res://scenes/batiments/batiment_base.tscn")
+const AccueilScene := preload("res://scenes/batiments/accueil.tscn")
+
+const BATIMENT_SCENES: Dictionary = {
+	"accueil": "res://scenes/batiments/accueil.tscn",
+}
 
 @export var debug_spawn_campeur: bool = false
 
@@ -154,19 +159,31 @@ func _confirm_placement() -> void:
 		return
 	var grid_pos: Vector2i = _preview.get_current_grid_pos()
 	var size: Vector2i = _preview.get_current_size()
+	var type_id: String = _preview._type_id
 
-	var data := BatimentData.new()
+	var data: BatimentData
+	if type_id == "accueil":
+		var accueil_data := AccueilData.new()
+		accueil_data.capacite_max = 1
+		data = accueil_data
+	else:
+		data = BatimentData.new()
 	data.batiment_id = IDGeneratorScript.generate_batiment_id()
-	data.type_id = _preview._type_id
+	data.type_id = type_id
 	data.grid_pos = grid_pos
 	data.size = size
 
 	GridSystem.place(data.batiment_id, grid_pos, size)
 	GameData.batiments[data.batiment_id] = data
 
-	var batiment := BatimentBaseScene.instantiate()
+	var scene_to_use: PackedScene
+	if type_id == "accueil":
+		scene_to_use = AccueilScene
+	else:
+		scene_to_use = BatimentBaseScene
+	var batiment := scene_to_use.instantiate()
 	if batiment == null:
-		push_error("_confirm_placement: échec d'instanciation BatimentBase pour %s" % data.batiment_id)
+		push_error("world._confirm_placement: instantiate() a retourné null pour type_id: " + type_id)
 		GridSystem.remove(grid_pos, size)
 		GameData.batiments.erase(data.batiment_id)
 		return
