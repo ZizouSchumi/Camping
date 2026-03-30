@@ -11,10 +11,10 @@ static func generate_campeur_id() -> String:
 	return "c_%03d" % _campeur_counter
 
 # Stub pour E03 — Bâtiments
-# static var _batiment_counter: int = 0
-# static func generate_batiment_id() -> String:
-#     _batiment_counter += 1
-#     return "b_%03d" % _batiment_counter
+static var _batiment_counter: int = 0
+static func generate_batiment_id() -> String:
+	_batiment_counter += 1
+	return "b_%03d" % _batiment_counter
 
 # Stub pour E06 — Staff
 # static var _staff_counter: int = 0

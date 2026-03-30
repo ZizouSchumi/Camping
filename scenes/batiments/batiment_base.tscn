@@ -1,0 +1,6 @@
+[gd_scene format=3 uid="uid://batiment_base_001"]
+
+[ext_resource type="Script" path="res://scenes/batiments/batiment_base.gd" id="1_batiment_base_script"]
+
+[node name="BatimentBase" type="Node2D"]
+script = ExtResource("1_batiment_base_script")

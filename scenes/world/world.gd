@@ -11,16 +11,23 @@ const SpeedHUDScript := preload("res://scenes/ui/hud/speed_hud.gd")
 const SettingsPanelScript := preload("res://scenes/ui/panels/settings_panel.gd")
 const CampeurScene := preload("res://scenes/campeurs/campeur.tscn")
 const IDGeneratorScript := preload("res://scripts/utils/id_generator.gd")
+const ConstructionMenuScript := preload("res://scenes/ui/construction/construction_menu.gd")
+const BatimentBaseScene := preload("res://scenes/batiments/batiment_base.tscn")
 
 @export var debug_spawn_campeur: bool = false
 
 var _test_campeur = null  # Campeur — non typé pour éviter le problème de scope class_name
+var _placement_active: bool = false
+var _preview  # PlacementPreview — non typé pour éviter le conflit de scope class_name (cf. _test_campeur)
+var _batiments_node: Node2D            # conteneur pour les bâtiments placés
 
 
 func _ready() -> void:
 	_setup_camera()
 	_setup_grid_visual()
 	_setup_placement_preview()
+	_setup_batiments_node()
+	_setup_construction_menu()
 	_setup_hud()
 	_setup_settings_panel()
 	if debug_spawn_campeur:
@@ -28,6 +35,23 @@ func _ready() -> void:
 
 
 func _unhandled_input(event: InputEvent) -> void:
+	# Mode placement bâtiment
+	if _placement_active:
+		if event is InputEventMouseButton and event.pressed:
+			if event.button_index == MOUSE_BUTTON_LEFT:
+				_confirm_placement()
+				return
+			if event.button_index == MOUSE_BUTTON_RIGHT:
+				_cancel_placement()
+				return
+		if event.is_action_pressed("ui_cancel"):
+			_cancel_placement()
+			return
+		if event.is_action_pressed("rotate_building"):
+			_preview.rotate_preview()
+			return
+
+	# Debug campeur (code existant inchangé)
 	if not debug_spawn_campeur:
 		return
 	if not event is InputEventMouseButton:
@@ -97,6 +121,73 @@ func _setup_placement_preview() -> void:
 	preview.name = "PlacementPreview"
 	preview.visible = false
 	add_child(preview)
+	_preview = preview
+
+
+func _setup_batiments_node() -> void:
+	_batiments_node = Node2D.new()
+	_batiments_node.name = "Batiments"
+	add_child(_batiments_node)
+
+
+func _setup_construction_menu() -> void:
+	var ui_layer := CanvasLayer.new()
+	ui_layer.name = "ConstructionLayer"
+	ui_layer.layer = 2
+	add_child(ui_layer)
+
+	var menu := ConstructionMenuScript.new()
+	menu.name = "ConstructionMenu"
+	ui_layer.add_child(menu)
+	menu.placement_requested.connect(_on_placement_requested)
+
+
+func _on_placement_requested(type_id: String, size: Vector2i) -> void:
+	if _placement_active:
+		_cancel_placement()
+	_placement_active = true
+	_preview.activate(type_id, size)
+
+
+func _confirm_placement() -> void:
+	if not _preview.is_valid_placement():
+		return
+	var grid_pos: Vector2i = _preview.get_current_grid_pos()
+	var size: Vector2i = _preview.get_current_size()
+
+	var data := BatimentData.new()
+	data.batiment_id = IDGeneratorScript.generate_batiment_id()
+	data.type_id = _preview._type_id
+	data.grid_pos = grid_pos
+	data.size = size
+
+	GridSystem.place(data.batiment_id, grid_pos, size)
+	GameData.batiments[data.batiment_id] = data
+
+	var batiment := BatimentBaseScene.instantiate()
+	if batiment == null:
+		push_error("_confirm_placement: échec d'instanciation BatimentBase pour %s" % data.batiment_id)
+		GridSystem.remove(grid_pos, size)
+		GameData.batiments.erase(data.batiment_id)
+		return
+	_batiments_node.add_child(batiment)
+	batiment.initialize(data)
+
+	EventBus.emit("batiment.construit", {
+		"entite_id": data.batiment_id,
+		"type_id": data.type_id,
+		"grid_pos": data.grid_pos,
+		"size": data.size,
+		"timestamp": SeasonManager.current_time,
+	})
+
+	_preview.deactivate()
+	_placement_active = false
+
+
+func _cancel_placement() -> void:
+	_preview.deactivate()
+	_placement_active = false
 
 
 func _setup_settings_panel() -> void:
