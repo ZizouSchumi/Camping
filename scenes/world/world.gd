@@ -13,14 +13,14 @@ const CampeurScene := preload("res://scenes/campeurs/campeur.tscn")
 const IDGeneratorScript := preload("res://scripts/utils/id_generator.gd")
 const ConstructionMenuScript := preload("res://scenes/ui/construction/construction_menu.gd")
 const BatimentBaseScene := preload("res://scenes/batiments/batiment_base.tscn")
-const AccueilScene := preload("res://scenes/batiments/accueil.tscn")
-const EmplacementScene := preload("res://scenes/batiments/emplacement.tscn")
 
 const BATIMENT_SCENES: Dictionary = {
 	"accueil":    "res://scenes/batiments/accueil.tscn",
 	"tente":      "res://scenes/batiments/emplacement.tscn",
 	"caravane":   "res://scenes/batiments/emplacement.tscn",
 	"mobil-home": "res://scenes/batiments/emplacement.tscn",
+	"sanitaires": "res://scenes/batiments/sanitaires.tscn",
+	"snack":      "res://scenes/batiments/snack.tscn",
 }
 
 @export var debug_spawn_campeur: bool = false
@@ -174,6 +174,14 @@ func _confirm_placement() -> void:
 		var emplacement_data := EmplacementData.new()
 		emplacement_data.capacite_max = 1
 		data = emplacement_data
+	elif type_id == "sanitaires":
+		var sanitaires_data := SanitairesData.new()
+		sanitaires_data.capacite_max = 4
+		data = sanitaires_data
+	elif type_id == "snack":
+		var snack_data := SnackData.new()
+		snack_data.capacite_max = 12
+		data = snack_data
 	else:
 		data = BatimentData.new()
 	data.batiment_id = IDGeneratorScript.generate_batiment_id()
@@ -185,10 +193,8 @@ func _confirm_placement() -> void:
 	GameData.batiments[data.batiment_id] = data
 
 	var scene_to_use: PackedScene
-	if type_id == "accueil":
-		scene_to_use = AccueilScene
-	elif type_id in ["tente", "caravane", "mobil-home"]:
-		scene_to_use = EmplacementScene
+	if BATIMENT_SCENES.has(type_id):
+		scene_to_use = load(BATIMENT_SCENES[type_id])
 	else:
 		scene_to_use = BatimentBaseScene
 	var batiment := scene_to_use.instantiate()

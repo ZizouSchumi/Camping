@@ -1,0 +1,6 @@
+[gd_scene format=3 uid="uid://snack_scene"]
+
+[ext_resource type="Script" path="res://scenes/batiments/snack.gd" id="1_snack_script"]
+
+[node name="Snack" type="Node2D"]
+script = ExtResource("1_snack_script")

@@ -31,16 +31,16 @@
     "sanitaires": {
       "label": "Sanitaires",
       "size": [2, 3],
-      "couleur": [0.55, 0.55, 0.55, 0.85],
-      "couleur_contour": [0.2, 0.2, 0.2, 1.0],
-      "capacite_max": 2
+      "couleur": [0.78, 0.90, 0.96, 0.85],
+      "couleur_contour": [0.20, 0.50, 0.72, 1.0],
+      "capacite_max": 4
     },
     "snack": {
       "label": "Snack",
       "size": [3, 3],
-      "couleur": [0.55, 0.55, 0.55, 0.85],
-      "couleur_contour": [0.2, 0.2, 0.2, 1.0],
-      "capacite_max": 3
+      "couleur": [0.96, 0.80, 0.20, 0.85],
+      "couleur_contour": [0.72, 0.45, 0.05, 1.0],
+      "capacite_max": 12
     },
     "piscine": {
       "label": "Piscine",

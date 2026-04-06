@@ -13,6 +13,7 @@ export/
 
 # Fichiers temporaires Godot
 *.import
+*.uid
 
 # Fichiers d'environnement local
 .env
