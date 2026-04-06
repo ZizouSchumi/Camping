@@ -21,6 +21,7 @@ const BATIMENT_SCENES: Dictionary = {
 	"mobil-home": "res://scenes/batiments/emplacement.tscn",
 	"sanitaires": "res://scenes/batiments/sanitaires.tscn",
 	"snack":      "res://scenes/batiments/snack.tscn",
+	"piscine":    "res://scenes/batiments/piscine.tscn",
 }
 
 @export var debug_spawn_campeur: bool = false
@@ -182,6 +183,10 @@ func _confirm_placement() -> void:
 		var snack_data := SnackData.new()
 		snack_data.capacite_max = 12
 		data = snack_data
+	elif type_id == "piscine":
+		var piscine_data := PiscineData.new()
+		piscine_data.capacite_max = 20
+		data = piscine_data
 	else:
 		data = BatimentData.new()
 	data.batiment_id = IDGeneratorScript.generate_batiment_id()

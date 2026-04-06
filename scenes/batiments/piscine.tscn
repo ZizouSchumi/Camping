@@ -1,0 +1,6 @@
+[gd_scene format=3 uid="uid://piscine_scene"]
+
+[ext_resource type="Script" path="res://scenes/batiments/piscine.gd" id="1_piscine_script"]
+
+[node name="Piscine" type="Node2D"]
+script = ExtResource("1_piscine_script")
