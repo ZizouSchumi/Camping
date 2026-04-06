@@ -26,8 +26,17 @@ const BATIMENT_SCENES: Dictionary = {
 }
 
 @export var debug_spawn_campeur: bool = false
+@export var debug_spawn_campeur_count: int = 2
 
-var _test_campeur = null  # Campeur — non typé pour éviter le problème de scope class_name
+const SPAWN_POSITIONS: Array[Vector2i] = [
+	Vector2i(5, 5),
+	Vector2i(35, 35),
+	Vector2i(5, 35),
+	Vector2i(35, 5),
+]
+const PRENOMS_TEST: Array[String] = ["Marcel", "Brigitte", "Kevin", "Sandrine"]
+
+var _test_campeurs: Array = []  # Array[Campeur] — non typé pour éviter le problème de scope class_name
 var _placement_active: bool = false
 var _preview  # PlacementPreview — non typé pour éviter le conflit de scope class_name (cf. _test_campeur)
 var _batiments_node: Node2D            # conteneur pour les bâtiments placés
@@ -93,28 +102,29 @@ func _unhandled_input(event: InputEvent) -> void:
 		return
 	if not event.pressed or event.button_index != MOUSE_BUTTON_LEFT:
 		return
-	if _test_campeur == null:
+	if _test_campeurs.is_empty():
 		return
 	var camera := get_viewport().get_camera_2d()
 	if camera == null:
 		return
 	var world_pos: Vector2 = get_viewport().get_canvas_transform().affine_inverse() * event.position
-	_test_campeur.move_to(world_pos)
+	_test_campeurs[0].move_to(world_pos)
 
 
 func _spawn_test_campeur() -> void:
-	var data := CampeurData.new()
-	data.campeur_id = IDGeneratorScript.generate_campeur_id()
-	data.prenom = "Marcel"
-	data.age = 45
-	data.genre = "homme"
-	data.date_arrivee = SeasonManager.current_time
-	data.date_depart_prevue = SeasonManager.current_time + 7.0
-
-	var campeur := CampeurScene.instantiate()
-	add_child(campeur)
-	campeur.initialize(data, GridSystem.grid_to_world(Vector2i(3, 3)))
-	_test_campeur = campeur
+	var count := clampi(debug_spawn_campeur_count, 1, SPAWN_POSITIONS.size())
+	for i in range(count):
+		var data := CampeurData.new()
+		data.campeur_id = "c_%03d" % (i + 1)
+		data.prenom = PRENOMS_TEST[i]
+		data.age = 35 + i * 7
+		data.genre = "homme" if i % 2 == 0 else "femme"
+		data.date_arrivee = SeasonManager.current_time
+		data.date_depart_prevue = SeasonManager.current_time + float(3 + i) * SeasonManager.SECONDS_PER_DAY
+		var campeur := CampeurScene.instantiate()
+		add_child(campeur)
+		campeur.initialize(data, GridSystem.grid_to_world(SPAWN_POSITIONS[i]))
+		_test_campeurs.append(campeur)
 
 
 func _setup_hud() -> void:
