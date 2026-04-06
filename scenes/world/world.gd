@@ -22,6 +22,7 @@ const BATIMENT_SCENES: Dictionary = {
 	"sanitaires": "res://scenes/batiments/sanitaires.tscn",
 	"snack":      "res://scenes/batiments/snack.tscn",
 	"piscine":    "res://scenes/batiments/piscine.tscn",
+	"chemin":     "res://scenes/batiments/chemin.tscn",
 }
 
 @export var debug_spawn_campeur: bool = false
@@ -30,6 +31,8 @@ var _test_campeur = null  # Campeur — non typé pour éviter le problème de s
 var _placement_active: bool = false
 var _preview  # PlacementPreview — non typé pour éviter le conflit de scope class_name (cf. _test_campeur)
 var _batiments_node: Node2D            # conteneur pour les bâtiments placés
+var _chemin_drag_active: bool = false
+var _chemin_last_drag_cell: Vector2i = Vector2i(-1, -1)
 
 
 func _ready() -> void:
@@ -47,6 +50,27 @@ func _ready() -> void:
 func _unhandled_input(event: InputEvent) -> void:
 	# Mode placement bâtiment
 	if _placement_active:
+		var type_id: String = _preview._type_id
+
+		# Mode drag-to-trace pour les chemins
+		if type_id == "chemin":
+			if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT:
+				if event.pressed:
+					_chemin_drag_active = true
+					_chemin_last_drag_cell = _preview.get_current_grid_pos() as Vector2i
+					_confirm_placement()
+				else:
+					_chemin_drag_active = false
+					_chemin_last_drag_cell = Vector2i(-1, -1)
+				return
+			elif event is InputEventMouseMotion and _chemin_drag_active:
+				var cell: Vector2i = _preview.get_current_grid_pos()
+				if cell != _chemin_last_drag_cell:
+					_chemin_last_drag_cell = cell
+					_confirm_placement()
+				return
+
+		# Placement standard (tous types, chemin inclus pour clic droit / Échap / rotation)
 		if event is InputEventMouseButton and event.pressed:
 			if event.button_index == MOUSE_BUTTON_LEFT:
 				_confirm_placement()
@@ -187,6 +211,8 @@ func _confirm_placement() -> void:
 		var piscine_data := PiscineData.new()
 		piscine_data.capacite_max = 20
 		data = piscine_data
+	elif type_id == "chemin":
+		data = CheminData.new()
 	else:
 		data = BatimentData.new()
 	data.batiment_id = IDGeneratorScript.generate_batiment_id()
@@ -219,11 +245,15 @@ func _confirm_placement() -> void:
 		"timestamp": SeasonManager.current_time,
 	})
 
-	_preview.deactivate()
-	_placement_active = false
+	# Pour les chemins : rester en mode placement pour le drag continu
+	if type_id != "chemin":
+		_preview.deactivate()
+		_placement_active = false
 
 
 func _cancel_placement() -> void:
+	_chemin_drag_active = false
+	_chemin_last_drag_cell = Vector2i(-1, -1)
 	_preview.deactivate()
 	_placement_active = false
 

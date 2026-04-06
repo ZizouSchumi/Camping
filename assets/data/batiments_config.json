@@ -52,8 +52,8 @@
     "chemin": {
       "label": "Chemin",
       "size": [1, 1],
-      "couleur": [0.55, 0.55, 0.55, 0.85],
-      "couleur_contour": [0.2, 0.2, 0.2, 1.0],
+      "couleur": [0.72, 0.65, 0.50, 0.90],
+      "couleur_contour": [0.48, 0.42, 0.32, 1.0],
       "capacite_max": 0
     }
   }
