@@ -1,0 +1,6 @@
+[gd_scene format=3 uid="uid://sanitaires_scene"]
+
+[ext_resource type="Script" path="res://scenes/batiments/sanitaires.gd" id="1_sanitaires_script"]
+
+[node name="Sanitaires" type="Node2D"]
+script = ExtResource("1_sanitaires_script")
