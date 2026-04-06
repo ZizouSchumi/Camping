@@ -4,7 +4,9 @@ class_name ConstructionMenu extends VBoxContainer
 # Ces définitions servent de référence pour toutes les stories E03.
 const CATALOGUE: Dictionary = {
 	"accueil":     { "label": "Accueil",     "size": Vector2i(3, 2) },
-	"emplacement": { "label": "Emplacement", "size": Vector2i(2, 2) },
+	"tente":       { "label": "Tente",       "size": Vector2i(2, 2) },
+	"caravane":    { "label": "Caravane",    "size": Vector2i(3, 2) },
+	"mobil-home":  { "label": "Mobil-Home",  "size": Vector2i(3, 3) },
 	"sanitaires":  { "label": "Sanitaires",  "size": Vector2i(2, 3) },
 	"snack":       { "label": "Snack",       "size": Vector2i(3, 3) },
 	"piscine":     { "label": "Piscine",     "size": Vector2i(5, 4) },
