@@ -7,12 +7,16 @@ extends Node
 # Il NE peut PAS référencer SeasonManager (autoload #6).
 # La synchronisation vitesse/pause passe exclusivement par EventBus "jeu.vitesse_change".
 
+const RAYON_PROXIMITE: float = 128.0   # 2 cellules × 64px
+const COOLDOWN_RENCONTRE: float = 30.0 # secondes de jeu entre 2 rencontres pour la même paire
+
 var _registered_campeurs: Array[String] = []
 var _besoins_config: Array = []           # Chargé depuis besoins_config.json
 var _personnalite_config: Dictionary = {} # Chargé depuis personnalites_config.json
 var _time_scale: float = 1.0              # Synchronisé via EventBus, PAS SeasonManager
 var _paused: bool = false                 # Synchronisé via EventBus, PAS SeasonManager
 var _elapsed_game_time: float = 0.0       # Équivalent local de SeasonManager.current_time
+var _proximite_cooldowns: Dictionary = {} # affinite_key → elapsed_game_time du dernier déclenchement
 										  # TODO S3+: synchroniser depuis SaveSystem.load_game() pour éviter
 										  # la désync des timestamps "besoin.critique" après rechargement de save
 										  # TODO S3+: après load_game(), rappeler register_campeur() (ou
@@ -79,6 +83,8 @@ func _process(delta: float) -> void:
 	_elapsed_game_time += game_delta
 	for campeur_id in _registered_campeurs.duplicate():
 		_update_campeur(campeur_id, game_delta)
+	if _registered_campeurs.size() >= 2:
+		_verifier_proximites()
 
 
 func register_campeur(campeur_id: String) -> void:
@@ -99,6 +105,9 @@ func unregister_campeur(campeur_id: String) -> void:
 	_critique_notified.erase(campeur_id)
 	_lod_factors.erase(campeur_id)
 	_state_machines.erase(campeur_id)
+	for key in _proximite_cooldowns.keys():
+		if campeur_id in key:
+			_proximite_cooldowns.erase(key)
 
 
 func _initialiser_personnalite(campeur_id: String) -> void:
@@ -299,3 +308,62 @@ func set_campeur_lod(campeur_id: String, lod_factor: float) -> void:
 	if not campeur_id in _registered_campeurs:
 		return
 	_lod_factors[campeur_id] = clampf(lod_factor, 0.1, 1.0)
+
+
+# Détection pairwise de proximité — O(n²), acceptable pour n ≤ 20 campeurs (E04)
+func _verifier_proximites() -> void:
+	var ids := _registered_campeurs.duplicate()
+	for i in range(ids.size()):
+		for j in range(i + 1, ids.size()):
+			var id_a: String = ids[i]
+			var id_b: String = ids[j]
+			if not GameData.campeurs.has(id_a) or not GameData.campeurs.has(id_b):
+				continue
+			var data_a: CampeurData = GameData.campeurs[id_a]
+			var data_b: CampeurData = GameData.campeurs[id_b]
+			if data_a.world_position.distance_to(data_b.world_position) > RAYON_PROXIMITE:
+				continue
+			var key := GameData.get_affinite_key(id_a, id_b)
+			var last_check: float = _proximite_cooldowns.get(key, -COOLDOWN_RENCONTRE)
+			if _elapsed_game_time - last_check < COOLDOWN_RENCONTRE:
+				continue
+			_proximite_cooldowns[key] = _elapsed_game_time
+			_gerer_rencontre(id_a, id_b)
+
+
+func _gerer_rencontre(id_a: String, id_b: String) -> void:
+	if not GameData.campeurs.has(id_a) or not GameData.campeurs.has(id_b):
+		return
+	var key := GameData.get_affinite_key(id_a, id_b)
+	var data_a: CampeurData = GameData.campeurs[id_a]
+	var data_b: CampeurData = GameData.campeurs[id_b]
+	var affinite: AffiniteData
+	if not GameData.affinites.has(key):
+		affinite = AffiniteData.new()
+		affinite.campeur_a_id = id_a
+		affinite.campeur_b_id = id_b
+		affinite.score = _calculer_compatibilite(data_a.personnalite, data_b.personnalite)
+		GameData.affinites[key] = affinite
+	else:
+		affinite = GameData.affinites[key]
+		var delta_score := 0.05 if affinite.score >= 0.5 else -0.03
+		affinite.score = clampf(affinite.score + delta_score, 0.0, 1.0)
+	affinite.nb_rencontres += 1
+	affinite.derniere_rencontre = _elapsed_game_time
+	EventBus.emit("campeur.rencontre", {
+		"entite_id": id_a,
+		"campeur_b_id": id_b,
+		"score": affinite.score,
+		"nb_rencontres": affinite.nb_rencontres,
+		"timestamp": _elapsed_game_time,
+	})
+
+
+func _calculer_compatibilite(pers_a: PersonnaliteData, pers_b: PersonnaliteData) -> float:
+	if pers_a == null or pers_b == null:
+		return 0.5  # Valeur neutre si personnalité non initialisée
+	var axes := ["sociabilite", "vitalite", "appetit", "exigence", "zenitude"]
+	var somme := 0.0
+	for axe in axes:
+		somme += 1.0 - absf(pers_a.get_axe(axe) - pers_b.get_axe(axe))
+	return somme / float(axes.size())

@@ -29,6 +29,7 @@ func initialize(data: CampeurData, spawn_position: Vector2 = Vector2.ZERO) -> vo
 	campeur_id = data.campeur_id
 	_data = data
 	position = spawn_position
+	_data.world_position = spawn_position  # Sync immédiat — évite fausse rencontre au frame 0
 
 	# Mise à jour visuelle
 	$Label.text = data.prenom
@@ -61,6 +62,8 @@ func move_to(target_world_pos: Vector2) -> void:
 
 
 func _physics_process(_delta: float) -> void:
+	if _data != null:
+		_data.world_position = position
 	if SeasonManager.paused or _path.is_empty() or _path_index >= _path.size():
 		velocity = Vector2.ZERO
 		return

@@ -14,6 +14,7 @@ class_name CampeurData extends Resource
 
 var besoins: Dictionary = {}  # besoin_id → BesoinData — initialisé et mis à jour exclusivement par NeedsSystem
 var personnalite: PersonnaliteData = null  # Assignée par NeedsSystem._initialiser_personnalite() — null avant register_campeur
+var world_position: Vector2 = Vector2.ZERO  # Runtime — mis à jour par campeur.gd._physics_process(), non persisté
 
 
 func is_valid() -> bool:

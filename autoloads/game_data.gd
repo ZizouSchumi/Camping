@@ -7,9 +7,17 @@ extends Node
 var campeurs: Dictionary = {}       # campeur_id → CampeurData
 var batiments: Dictionary = {}      # batiment_id → BatimentData
 var staff_members: Dictionary = {}  # staff_id → StaffData
+var affinites: Dictionary = {}      # "c_001|c_002" → AffiniteData
 
 var argent: float = 10000.0
 var cout_construction_par_type: Dictionary = {}
+
+
+func get_affinite_key(id_a: String, id_b: String) -> String:
+	# Trier pour garantir l'unicité peu importe l'ordre A↔B
+	if id_a < id_b:
+		return id_a + "|" + id_b
+	return id_b + "|" + id_a
 
 
 func _ready() -> void:
