@@ -5,56 +5,64 @@
       "size": [3, 2],
       "couleur": [0.18, 0.48, 0.82, 0.85],
       "couleur_contour": [0.05, 0.25, 0.55, 1.0],
-      "capacite_max": 1
+      "capacite_max": 1,
+      "cout_construction": 500
     },
     "tente": {
       "label": "Tente",
       "size": [2, 2],
       "couleur": [0.35, 0.70, 0.35, 0.85],
       "couleur_contour": [0.10, 0.45, 0.10, 1.0],
-      "capacite_max": 1
+      "capacite_max": 1,
+      "cout_construction": 150
     },
     "caravane": {
       "label": "Caravane",
       "size": [3, 2],
       "couleur": [0.85, 0.75, 0.40, 0.85],
       "couleur_contour": [0.60, 0.45, 0.10, 1.0],
-      "capacite_max": 1
+      "capacite_max": 1,
+      "cout_construction": 300
     },
     "mobil-home": {
       "label": "Mobil-Home",
       "size": [3, 3],
       "couleur": [0.35, 0.55, 0.75, 0.85],
       "couleur_contour": [0.10, 0.30, 0.55, 1.0],
-      "capacite_max": 1
+      "capacite_max": 1,
+      "cout_construction": 500
     },
     "sanitaires": {
       "label": "Sanitaires",
       "size": [2, 3],
       "couleur": [0.78, 0.90, 0.96, 0.85],
       "couleur_contour": [0.20, 0.50, 0.72, 1.0],
-      "capacite_max": 4
+      "capacite_max": 4,
+      "cout_construction": 400
     },
     "snack": {
       "label": "Snack",
       "size": [3, 3],
       "couleur": [0.96, 0.80, 0.20, 0.85],
       "couleur_contour": [0.72, 0.45, 0.05, 1.0],
-      "capacite_max": 12
+      "capacite_max": 12,
+      "cout_construction": 800
     },
     "piscine": {
       "label": "Piscine",
       "size": [5, 4],
       "couleur": [0.10, 0.72, 0.90, 0.85],
       "couleur_contour": [0.03, 0.38, 0.62, 1.0],
-      "capacite_max": 20
+      "capacite_max": 20,
+      "cout_construction": 2000
     },
     "chemin": {
       "label": "Chemin",
       "size": [1, 1],
       "couleur": [0.72, 0.65, 0.50, 0.90],
       "couleur_contour": [0.48, 0.42, 0.32, 1.0],
-      "capacite_max": 0
+      "capacite_max": 0,
+      "cout_construction": 50
     }
   }
 }

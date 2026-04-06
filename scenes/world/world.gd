@@ -33,6 +33,7 @@ var _preview  # PlacementPreview — non typé pour éviter le conflit de scope 
 var _batiments_node: Node2D            # conteneur pour les bâtiments placés
 var _chemin_drag_active: bool = false
 var _chemin_last_drag_cell: Vector2i = Vector2i(-1, -1)
+var _construction_menu  # ConstructionMenu — référence pour refresh budget
 
 
 func _ready() -> void:
@@ -174,6 +175,7 @@ func _setup_construction_menu() -> void:
 	menu.name = "ConstructionMenu"
 	ui_layer.add_child(menu)
 	menu.placement_requested.connect(_on_placement_requested)
+	_construction_menu = menu
 
 
 func _on_placement_requested(type_id: String, size: Vector2i) -> void:
@@ -183,12 +185,37 @@ func _on_placement_requested(type_id: String, size: Vector2i) -> void:
 	_preview.activate(type_id, size)
 
 
+func verifier_prerequis(type_id: String) -> bool:
+	if type_id not in ["tente", "caravane", "mobil-home"]:
+		return true
+	for bat in GameData.batiments.values():
+		if bat.type_id == "accueil":
+			return true
+	push_error("world._confirm_placement: un Accueil est requis avant de placer un emplacement")
+	return false
+
+
+func verifier_budget(type_id: String) -> bool:
+	var cout: float = 0.0
+	if GameData.cout_construction_par_type.has(type_id):
+		cout = float(GameData.cout_construction_par_type[type_id])
+	if GameData.argent < cout:
+		push_error("world._confirm_placement: budget insuffisant — requis: %.0f€, disponible: %.0f€" % [cout, GameData.argent])
+		return false
+	return true
+
+
 func _confirm_placement() -> void:
 	if not _preview.is_valid_placement():
 		return
 	var grid_pos: Vector2i = _preview.get_current_grid_pos()
 	var size: Vector2i = _preview.get_current_size()
 	var type_id: String = _preview._type_id
+
+	if not verifier_prerequis(type_id):
+		return
+	if not verifier_budget(type_id):
+		return
 
 	var data: BatimentData
 	if type_id == "accueil":
@@ -244,6 +271,11 @@ func _confirm_placement() -> void:
 		"size": data.size,
 		"timestamp": SeasonManager.current_time,
 	})
+
+	var cout: float = float(GameData.cout_construction_par_type.get(type_id, 0))
+	GameData.argent -= cout
+	if _construction_menu != null:
+		_construction_menu.refresh_budget(GameData.argent)
 
 	# Pour les chemins : rester en mode placement pour le drag continu
 	if type_id != "chemin":

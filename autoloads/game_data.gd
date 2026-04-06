@@ -7,3 +7,33 @@ extends Node
 var campeurs: Dictionary = {}       # campeur_id → CampeurData
 var batiments: Dictionary = {}      # batiment_id → BatimentData
 var staff_members: Dictionary = {}  # staff_id → StaffData
+
+var argent: float = 10000.0
+var cout_construction_par_type: Dictionary = {}
+
+
+func _ready() -> void:
+	_charger_couts_construction()
+
+
+func _charger_couts_construction() -> void:
+	var path := "res://assets/data/batiments_config.json"
+	if not FileAccess.file_exists(path):
+		push_error("GameData: batiments_config.json introuvable")
+		return
+	var file := FileAccess.open(path, FileAccess.READ)
+	if file == null:
+		push_error("GameData: impossible d'ouvrir batiments_config.json")
+		return
+	var json := JSON.new()
+	var err := json.parse(file.get_as_text())
+	if err != OK:
+		push_error("GameData: JSON invalide dans batiments_config.json")
+		return
+	var data: Dictionary = json.data
+	if not data.has("batiments"):
+		return
+	for type_id in data["batiments"]:
+		var entry: Dictionary = data["batiments"][type_id]
+		if entry.has("cout_construction"):
+			cout_construction_par_type[type_id] = entry["cout_construction"]
