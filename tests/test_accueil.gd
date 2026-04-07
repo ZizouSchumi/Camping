@@ -16,10 +16,11 @@ func after_each() -> void:
 
 func test_accueil_data_defaults() -> void:
 	var data := AccueilData.new()
-	assert_eq(data.capacite_max, 1, "capacite_max doit être 1 par défaut")
+	# capacite_max et campeurs_en_service sont dans BatimentData depuis S4.3 (valeur 0 par défaut, settée par world.gd)
+	assert_eq(data.capacite_max, 0, "capacite_max hérité de BatimentData — 0 par défaut (settée par world.gd)")
 	assert_true(data.is_open, "is_open doit être true par défaut")
 	assert_eq(data.total_checkins, 0, "total_checkins doit être 0 par défaut")
-	assert_true(data.campeurs_en_service.is_empty(), "campeurs_en_service doit être vide par défaut")
+	assert_true(data.campeurs_en_service.is_empty(), "campeurs_en_service hérité de BatimentData — vide par défaut")
 
 
 func test_accueil_data_extends_batiment_data() -> void:

@@ -1,5 +1,4 @@
 class_name SnackData extends BatimentData
 
-@export var capacite_max: int = 12
+# capacite_max et campeurs_en_service sont définis dans BatimentData (S4.3)
 @export var is_open: bool = true
-var campeurs_en_service: Array[String] = []  # état runtime — non persisté

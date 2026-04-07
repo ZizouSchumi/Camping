@@ -9,6 +9,20 @@ extends Node
 
 const RAYON_PROXIMITE: float = 128.0   # 2 cellules × 64px
 const COOLDOWN_RENCONTRE: float = 30.0 # secondes de jeu entre 2 rencontres pour la même paire
+const DUREE_UTILISATION: float = 15.0  # secondes de jeu passées dans un bâtiment (S4.3)
+
+# Mapping besoin_id → type_id bâtiment cible (AC #1 S4.3)
+const BESOIN_BATIMENT: Dictionary = {
+	"faim":              "snack",
+	"soif":              "snack",
+	"sommeil":           "_emplacement",  # logique spéciale — voir _trouver_emplacement_libre()
+	"divertissement":    "piscine",
+	"activite_physique": "piscine",
+	"bien_etre":         "sanitaires",
+	"accomplissement":   "",             # errance — pas de bâtiment dédié en E04
+	"confort_emotionnel": "",            # errance
+	"socialiser":        "",             # géré par S4.2 (proximité), pas de bâtiment
+}
 
 var _registered_campeurs: Array[String] = []
 var _besoins_config: Array = []           # Chargé depuis besoins_config.json
@@ -25,6 +39,7 @@ var _proximite_cooldowns: Dictionary = {} # affinite_key → elapsed_game_time d
 var _critique_notified: Dictionary = {}   # campeur_id → Array[String] de besoin_ids en état critique
 var _lod_factors: Dictionary = {}         # campeur_id → float (1.0 = full update, < 1.0 = réduit)
 var _state_machines: Dictionary = {}      # campeur_id → StateMachine (S2.5)
+var _utilisations_en_cours: Dictionary = {}  # campeur_id → {batiment_id, time_restant} (S4.3)
 # Buffers pré-alloués pour get_besoin_prioritaire — évite les allocs GC dans la boucle AI (S2.5)
 var _prio_primaires: Array[BesoinData] = []
 var _prio_secondaires: Array[BesoinData] = []
@@ -105,6 +120,7 @@ func unregister_campeur(campeur_id: String) -> void:
 	_critique_notified.erase(campeur_id)
 	_lod_factors.erase(campeur_id)
 	_state_machines.erase(campeur_id)
+	_utilisations_en_cours.erase(campeur_id)
 	for key in _proximite_cooldowns.keys():
 		if campeur_id in key:
 			_proximite_cooldowns.erase(key)
@@ -196,6 +212,7 @@ func _update_campeur(campeur_id: String, game_delta: float) -> void:
 				sm.transition_vers(StateMachine.Etat.IDLE)
 		StateMachine.Etat.ATTENDING:
 			pass  # Transitoire instantané — géré dans _on_destination_atteinte
+	_update_utilisation(campeur_id, game_delta)
 
 
 func _evaluer_et_agir(campeur_id: String) -> void:
@@ -206,13 +223,62 @@ func _evaluer_et_agir(campeur_id: String) -> void:
 	if besoin == null:
 		sm.timer = 0.0
 		return
-	var destination := _get_wander_destination()
+
+	var destination := Vector2.ZERO
+	var batiment_id := ""
+	var type_bat: String = BESOIN_BATIMENT.get(besoin.besoin_id, "")
+
+	if type_bat == "_emplacement":
+		# Logique sommeil : utiliser l'emplacement assigné ou en chercher un libre
+		var campeur_data: CampeurData = GameData.campeurs[campeur_id]
+		if campeur_data.emplacement_id != "":
+			if GameData.batiments.has(campeur_data.emplacement_id):
+				var bat: BatimentData = GameData.batiments[campeur_data.emplacement_id]
+				destination = GridSystem.grid_to_world(bat.grid_pos)
+				batiment_id = campeur_data.emplacement_id
+			else:
+				campeur_data.emplacement_id = ""  # Emplacement supprimé — réassigner
+		if batiment_id == "":
+			var eid := _trouver_emplacement_libre(campeur_data.world_position)
+			if eid != "":
+				var edata: BatimentData = GameData.batiments[eid]
+				campeur_data.emplacement_id = eid
+				if edata is EmplacementData:
+					(edata as EmplacementData).campeur_id = campeur_id
+				destination = GridSystem.grid_to_world(edata.grid_pos)
+				batiment_id = eid
+			else:
+				destination = _get_wander_destination()
+
+	elif type_bat != "":
+		# Bâtiment standard : chercher le plus proche disponible
+		var pos_campeur := GridSystem.world_to_grid(GameData.campeurs[campeur_id].world_position)
+		var bat_pos := GridSystem.get_nearest(pos_campeur, type_bat)
+		if bat_pos == Vector2i(-1, -1):
+			destination = _get_wander_destination()  # Aucun bâtiment du type — errance
+		else:
+			batiment_id = _get_batiment_id_at(bat_pos)
+			if batiment_id != "" and GameData.batiments.has(batiment_id):
+				var bat: BatimentData = GameData.batiments[batiment_id]
+				if bat.capacite_max > 0 and bat.campeurs_en_service.size() >= bat.capacite_max:
+					destination = _get_wander_destination()  # File d'attente pleine — errance
+					batiment_id = ""
+				else:
+					destination = GridSystem.grid_to_world(bat_pos)
+			else:
+				destination = _get_wander_destination()
+	else:
+		# Besoin sans bâtiment dédié (accomplissement, confort_emotionnel, socialiser) — errance
+		destination = _get_wander_destination()
+
 	sm.transition_vers(StateMachine.Etat.WALKING)
 	sm.besoin_cible = besoin.besoin_id
+	sm.batiment_cible = batiment_id
 	EventBus.emit("campeur.deplacer_vers", {
 		"entite_id": campeur_id,
 		"position": destination,
 		"besoin_id": besoin.besoin_id,
+		"batiment_id": batiment_id,
 		"timestamp": _elapsed_game_time,
 	})
 
@@ -225,9 +291,80 @@ func _on_destination_atteinte(payload: Dictionary) -> void:
 	if sm.etat != StateMachine.Etat.WALKING:
 		return
 	sm.transition_vers(StateMachine.Etat.ATTENDING)
-	if sm.besoin_cible != "":
-		satisfaire_besoin(campeur_id, sm.besoin_cible, StateMachine.SATISFACTION_QUANTITE)
+
+	var batiment_id := sm.batiment_cible
+	if batiment_id != "" and GameData.batiments.has(batiment_id):
+		var bat: BatimentData = GameData.batiments[batiment_id]
+		# Re-vérifier la capacité (piège #2 : deux campeurs peuvent arriver en même temps)
+		if bat.capacite_max == 0 or bat.campeurs_en_service.size() < bat.capacite_max:
+			bat.campeurs_en_service.append(campeur_id)
+			if sm.besoin_cible != "":
+				satisfaire_besoin(campeur_id, sm.besoin_cible, StateMachine.SATISFACTION_QUANTITE)
+				EventBus.emit("batiment.campeur_utilise", {
+					"entite_id": batiment_id,
+					"campeur_id": campeur_id,
+					"besoin_id": sm.besoin_cible,
+					"timestamp": _elapsed_game_time,
+				})
+			_planifier_depart_batiment(campeur_id, batiment_id)
+		else:
+			# Bâtiment plein à l'arrivée — satisfaction sans bâtiment
+			if sm.besoin_cible != "":
+				satisfaire_besoin(campeur_id, sm.besoin_cible, StateMachine.SATISFACTION_QUANTITE)
+	else:
+		# Errance (pas de bâtiment cible) — satisfaction wander comme avant
+		if sm.besoin_cible != "":
+			satisfaire_besoin(campeur_id, sm.besoin_cible, StateMachine.SATISFACTION_QUANTITE)
+
 	sm.transition_vers(StateMachine.Etat.IDLE)
+
+
+func _planifier_depart_batiment(campeur_id: String, batiment_id: String) -> void:
+	_utilisations_en_cours[campeur_id] = {
+		"batiment_id": batiment_id,
+		"time_restant": DUREE_UTILISATION,
+	}
+
+
+func _update_utilisation(campeur_id: String, game_delta: float) -> void:
+	if not _utilisations_en_cours.has(campeur_id):
+		return
+	var util: Dictionary = _utilisations_en_cours[campeur_id]
+	util["time_restant"] -= game_delta
+	if util["time_restant"] <= 0.0:
+		var bid: String = util["batiment_id"]
+		if GameData.batiments.has(bid):
+			var bat: BatimentData = GameData.batiments[bid]
+			bat.campeurs_en_service.erase(campeur_id)
+			if bat is EmplacementData:
+				(bat as EmplacementData).campeur_id = ""
+		_utilisations_en_cours.erase(campeur_id)
+
+
+func _get_batiment_id_at(grid_pos: Vector2i) -> String:
+	for batiment_id in GameData.batiments:
+		var bat: BatimentData = GameData.batiments[batiment_id]
+		if bat.grid_pos == grid_pos:
+			return batiment_id
+	return ""
+
+
+func _trouver_emplacement_libre(world_pos: Vector2) -> String:
+	var types := ["tente", "caravane", "mobil-home"]
+	var meilleur_id := ""
+	var meilleure_dist := 9999999.0
+	for batiment_id in GameData.batiments:
+		var bat: BatimentData = GameData.batiments[batiment_id]
+		if bat.type_id not in types:
+			continue
+		if bat.capacite_max > 0 and bat.campeurs_en_service.size() >= bat.capacite_max:
+			continue  # Emplacement occupé
+		var bat_world := GridSystem.grid_to_world(bat.grid_pos)
+		var dist := world_pos.distance_to(bat_world)
+		if dist < meilleure_dist:
+			meilleure_dist = dist
+			meilleur_id = batiment_id
+	return meilleur_id
 
 
 func _get_wander_destination() -> Vector2:

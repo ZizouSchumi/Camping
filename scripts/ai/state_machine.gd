@@ -11,6 +11,7 @@ enum Etat { IDLE, WALKING, ATTENDING }
 
 var etat: Etat = Etat.IDLE
 var besoin_cible: String = ""
+var batiment_cible: String = ""  # batiment_id cible actuel (pour l'utilisation à l'arrivée, S4.3)
 var timer: float = 0.0
 
 

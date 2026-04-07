@@ -15,9 +15,10 @@ func after_each() -> void:
 # AC #1 — SnackData : valeurs par défaut
 func test_snack_data_defaults() -> void:
 	var data := SnackData.new()
-	assert_eq(data.capacite_max, 12, "capacite_max doit être 12 par défaut")
+	# capacite_max et campeurs_en_service sont dans BatimentData depuis S4.3
+	assert_eq(data.capacite_max, 0, "capacite_max hérité de BatimentData — 0 par défaut (settée par world.gd)")
 	assert_true(data.is_open, "is_open doit être true par défaut")
-	assert_eq(data.campeurs_en_service, [], "campeurs_en_service doit être vide par défaut")
+	assert_eq(data.campeurs_en_service, [], "campeurs_en_service hérité de BatimentData — vide par défaut")
 
 
 # AC #1 — SnackData hérite bien de BatimentData

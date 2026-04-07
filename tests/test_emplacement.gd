@@ -20,7 +20,8 @@ func after_each() -> void:
 # AC #1 — EmplacementData : valeurs par défaut
 func test_emplacement_data_defaults() -> void:
 	var data := EmplacementData.new()
-	assert_eq(data.capacite_max, 1, "capacite_max doit être 1 par défaut")
+	# capacite_max est dans BatimentData depuis S4.3 (settée à 1 par world.gd à la création)
+	assert_eq(data.capacite_max, 0, "capacite_max hérité de BatimentData — 0 par défaut (settée par world.gd)")
 	assert_eq(data.campeur_id, "", "campeur_id doit être vide par défaut")
 
 

@@ -1,4 +1,4 @@
 class_name EmplacementData extends BatimentData
 
-@export var capacite_max: int = 1
-var campeur_id: String = ""   # état runtime — non persisté (campeur occupant l'emplacement)
+# capacite_max et campeurs_en_service sont définis dans BatimentData (S4.3)
+var campeur_id: String = ""   # état runtime — non persisté (campeur occupant l'emplacement, legacy S3.3)
