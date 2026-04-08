@@ -9,6 +9,9 @@ const SECONDS_PER_GAME_HOUR: float = 60.0
 const HOURS_PER_DAY: int = 24
 const START_HOUR: float = 8.0
 const SECONDS_PER_DAY: float = SECONDS_PER_GAME_HOUR * HOURS_PER_DAY
+const HEURE_COUCHER_SOLEIL: float = 20.0  # Pic du coucher (orange) — centre de la transition 19h-21h
+const HEURE_LEVER_SOLEIL: float = 7.0    # Fin du lever — fin de la transition 5h-7h
+const HEURE_DEBUT_NUIT: float = 21.0     # Nuit pleine (overlay + comportements nocturnes NeedsSystem)
 
 var current_time: float = 0.0
 var current_day: int = 1
@@ -19,6 +22,10 @@ var paused: bool = false
 var _speed_index: int = 0
 var _last_hour: int = int(START_HOUR)
 var _last_day: int = 1
+
+
+func is_nuit() -> bool:
+	return current_hour >= HEURE_DEBUT_NUIT or current_hour < HEURE_LEVER_SOLEIL
 
 
 func _process(delta: float) -> void:

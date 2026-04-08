@@ -8,6 +8,7 @@ const GridVisualScript := preload("res://scenes/world/grid_visual.gd")
 const PlacementPreviewScript := preload("res://scenes/ui/construction/placement_preview.gd")
 const TimeControllerScript := preload("res://scenes/ui/hud/time_controller.gd")
 const SpeedHUDScript := preload("res://scenes/ui/hud/speed_hud.gd")
+const DayNightOverlayScript := preload("res://scenes/world/day_night_overlay.gd")
 const SettingsPanelScript := preload("res://scenes/ui/panels/settings_panel.gd")
 const CampeurScene := preload("res://scenes/campeurs/campeur.tscn")
 const IDGeneratorScript := preload("res://scripts/utils/id_generator.gd")
@@ -135,6 +136,10 @@ func _setup_hud() -> void:
 	var hud := SpeedHUDScript.new()
 	hud.name = "SpeedHUD"
 	add_child(hud)
+
+	var overlay := DayNightOverlayScript.new()
+	overlay.name = "DayNightOverlay"
+	add_child(overlay)
 
 
 func _setup_camera() -> void:

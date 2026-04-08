@@ -17,14 +17,20 @@ func _ready() -> void:
 	add_child(_label)
 
 	EventBus.subscribe("jeu.vitesse_change", _on_vitesse_change)
+	EventBus.subscribe("temps.nouvelle_heure", _on_nouvelle_heure)
 	_update_label()
 
 
-func _process(_delta: float) -> void:
-	_update_label()
+func _exit_tree() -> void:
+	EventBus.unsubscribe("jeu.vitesse_change", _on_vitesse_change)
+	EventBus.unsubscribe("temps.nouvelle_heure", _on_nouvelle_heure)
 
 
 func _on_vitesse_change(_payload: Dictionary) -> void:
+	_update_label()
+
+
+func _on_nouvelle_heure(_payload: Dictionary) -> void:
 	_update_label()
 
 

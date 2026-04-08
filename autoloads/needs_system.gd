@@ -10,6 +10,11 @@ extends Node
 const RAYON_PROXIMITE: float = 128.0   # 2 cellules × 64px
 const COOLDOWN_RENCONTRE: float = 30.0 # secondes de jeu entre 2 rencontres pour la même paire
 const DUREE_UTILISATION: float = 15.0  # secondes de jeu passées dans un bâtiment (S4.3)
+const DECAY_NUIT_SOMMEIL: float = 0.1  # ×0.1 : le campeur dort (besoin sommeil décroît lentement)
+const DECAY_NUIT_AUTRES: float = 0.3   # ×0.3 : repos général (autres besoins aussi réduits)
+const HEURE_DEBUT_NUIT: int = 21       # Nuit comportementale — après la transition visuelle coucher (19h-21h)
+                                       # ≠ SeasonManager.HEURE_COUCHER_SOLEIL (20h = pic orange) : intentionnel
+const HEURE_FIN_NUIT: int = 7          # Heure à partir de laquelle le jour reprend
 
 # Mapping besoin_id → type_id bâtiment cible (AC #1 S4.3)
 const BESOIN_BATIMENT: Dictionary = {
@@ -24,6 +29,7 @@ const BESOIN_BATIMENT: Dictionary = {
 	"socialiser":        "",             # géré par S4.2 (proximité), pas de bâtiment
 }
 
+var _est_nuit: bool = false             # true entre HEURE_DEBUT_NUIT et HEURE_FIN_NUIT (S4.4)
 var _registered_campeurs: Array[String] = []
 var _besoins_config: Array = []           # Chargé depuis besoins_config.json
 var _personnalite_config: Dictionary = {} # Chargé depuis personnalites_config.json
@@ -51,6 +57,7 @@ func _ready() -> void:
 	_load_personnalites_config()
 	EventBus.subscribe("jeu.vitesse_change", _on_vitesse_change)
 	EventBus.subscribe("campeur.destination_atteinte", _on_destination_atteinte)
+	EventBus.subscribe("temps.nouvelle_heure", _on_nouvelle_heure_needs)
 
 
 func _load_besoins_config() -> void:
@@ -89,6 +96,11 @@ func _load_personnalites_config() -> void:
 func _on_vitesse_change(payload: Dictionary) -> void:
 	_time_scale = payload.get("vitesse", 1.0)
 	_paused = payload.get("en_pause", false)
+
+
+func _on_nouvelle_heure_needs(payload: Dictionary) -> void:
+	var heure := int(payload.get("heure", 12))
+	_est_nuit = (heure >= HEURE_DEBUT_NUIT or heure < HEURE_FIN_NUIT)
 
 
 func _process(delta: float) -> void:
@@ -196,7 +208,12 @@ func _update_campeur(campeur_id: String, game_delta: float) -> void:
 	var data: CampeurData = GameData.campeurs[campeur_id]
 	for besoin_id in data.besoins:
 		var besoin: BesoinData = data.besoins[besoin_id]
-		besoin.valeur_actuelle = maxf(0.0, besoin.valeur_actuelle - besoin.taux_decay * besoin.modificateur_decay * game_delta)
+		var modificateur_nuit := 1.0
+		if _est_nuit:
+			modificateur_nuit = DECAY_NUIT_SOMMEIL if besoin_id == "sommeil" else DECAY_NUIT_AUTRES
+		besoin.valeur_actuelle = maxf(0.0,
+			besoin.valeur_actuelle - besoin.taux_decay * besoin.modificateur_decay * modificateur_nuit * game_delta
+		)
 		_check_etat_critique(campeur_id, besoin)
 	# Tick AI (S2.5)
 	if not _state_machines.has(campeur_id):
@@ -218,8 +235,43 @@ func _update_campeur(campeur_id: String, game_delta: float) -> void:
 func _evaluer_et_agir(campeur_id: String) -> void:
 	if not _state_machines.has(campeur_id):
 		return
-	var besoin := get_besoin_prioritaire(campeur_id)
 	var sm: StateMachine = _state_machines[campeur_id]
+
+	# AC #5 S4.4 — Forcer sommeil la nuit si le besoin n'est pas satisfait
+	if _est_nuit and GameData.campeurs.has(campeur_id):
+		var data_nuit: CampeurData = GameData.campeurs[campeur_id]
+		var besoin_sommeil: BesoinData = data_nuit.besoins.get("sommeil")
+		if besoin_sommeil != null and besoin_sommeil.valeur_actuelle < besoin_sommeil.seuil_satisfait:
+			var destination_nuit := Vector2.ZERO
+			var batiment_nuit := ""
+			if data_nuit.emplacement_id != "" and GameData.batiments.has(data_nuit.emplacement_id):
+				var bat: BatimentData = GameData.batiments[data_nuit.emplacement_id]
+				destination_nuit = GridSystem.grid_to_world(bat.grid_pos)
+				batiment_nuit = data_nuit.emplacement_id
+			else:
+				var eid := _trouver_emplacement_libre(data_nuit.world_position)
+				if eid != "":
+					var edata: BatimentData = GameData.batiments[eid]
+					data_nuit.emplacement_id = eid
+					if edata is EmplacementData:
+						(edata as EmplacementData).campeur_id = campeur_id
+					destination_nuit = GridSystem.grid_to_world(edata.grid_pos)
+					batiment_nuit = eid
+				else:
+					destination_nuit = _get_wander_destination()
+			sm.transition_vers(StateMachine.Etat.WALKING)
+			sm.besoin_cible = "sommeil"
+			sm.batiment_cible = batiment_nuit
+			EventBus.emit("campeur.deplacer_vers", {
+				"entite_id": campeur_id,
+				"position": destination_nuit,
+				"besoin_id": "sommeil",
+				"batiment_id": batiment_nuit,
+				"timestamp": _elapsed_game_time,
+			})
+			return
+
+	var besoin := get_besoin_prioritaire(campeur_id)
 	if besoin == null:
 		sm.timer = 0.0
 		return
