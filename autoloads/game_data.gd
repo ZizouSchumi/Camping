@@ -8,9 +8,17 @@ var campeurs: Dictionary = {}       # campeur_id → CampeurData
 var batiments: Dictionary = {}      # batiment_id → BatimentData
 var staff_members: Dictionary = {}  # staff_id → StaffData
 var affinites: Dictionary = {}      # "c_001|c_002" → AffiniteData
+var avis: Array[Dictionary] = []    # Avis laissés par les campeurs au départ (S4.5), max MAX_AVIS
 
 var argent: float = 10000.0
 var cout_construction_par_type: Dictionary = {}
+const MAX_AVIS: int = 50
+
+
+func ajouter_avis(avis_dict: Dictionary) -> void:
+	avis.append(avis_dict)
+	while avis.size() > MAX_AVIS:
+		avis.pop_front()  # Supprimer le plus ancien (FIFO — les avis récents sont conservés)
 
 
 func get_affinite_key(id_a: String, id_b: String) -> String:

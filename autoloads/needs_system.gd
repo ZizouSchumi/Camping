@@ -15,6 +15,14 @@ const DECAY_NUIT_AUTRES: float = 0.3   # ×0.3 : repos général (autres besoins
 const HEURE_DEBUT_NUIT: int = 21       # Nuit comportementale — après la transition visuelle coucher (19h-21h)
                                        # ≠ SeasonManager.HEURE_COUCHER_SOLEIL (20h = pic orange) : intentionnel
 const HEURE_FIN_NUIT: int = 7          # Heure à partir de laquelle le jour reprend
+const EWMA_ALPHA: float = 0.01         # Coefficient EWMA satisfaction (S4.5) — 1% de réactivité par tick
+const COMMENTAIRES: Dictionary = {     # Commentaires procéduraux par note (S4.5)
+	5: ["Séjour parfait, on reviendra !", "Camping magnifique, bravo !", "Tout était impeccable."],
+	4: ["Très bien dans l'ensemble.", "Super séjour, quelques petits manques.", "Excellent rapport qualité/prix."],
+	3: ["Correct, sans plus.", "Sympa mais perfectible.", "On a passé un séjour moyen."],
+	2: ["Décevant, pas à la hauteur.", "Plusieurs problèmes rencontrés.", "On ne reviendra pas."],
+	1: ["Catastrophique !", "À éviter absolument.", "La pire expérience de camping de ma vie."],
+}
 
 # Mapping besoin_id → type_id bâtiment cible (AC #1 S4.3)
 const BESOIN_BATIMENT: Dictionary = {
@@ -30,6 +38,7 @@ const BESOIN_BATIMENT: Dictionary = {
 }
 
 var _est_nuit: bool = false             # true entre HEURE_DEBUT_NUIT et HEURE_FIN_NUIT (S4.4)
+var _current_day: int = 1               # Synchronisé via "temps.nouvelle_heure" — évite la dépendance directe à SeasonManager
 var _registered_campeurs: Array[String] = []
 var _besoins_config: Array = []           # Chargé depuis besoins_config.json
 var _personnalite_config: Dictionary = {} # Chargé depuis personnalites_config.json
@@ -101,6 +110,7 @@ func _on_vitesse_change(payload: Dictionary) -> void:
 func _on_nouvelle_heure_needs(payload: Dictionary) -> void:
 	var heure := int(payload.get("heure", 12))
 	_est_nuit = (heure >= HEURE_DEBUT_NUIT or heure < HEURE_FIN_NUIT)
+	_current_day = int(payload.get("jour", _current_day))
 
 
 func _process(delta: float) -> void:
@@ -112,6 +122,7 @@ func _process(delta: float) -> void:
 		_update_campeur(campeur_id, game_delta)
 	if _registered_campeurs.size() >= 2:
 		_verifier_proximites()
+	_verifier_departs()
 
 
 func register_campeur(campeur_id: String) -> void:
@@ -215,6 +226,13 @@ func _update_campeur(campeur_id: String, game_delta: float) -> void:
 			besoin.valeur_actuelle - besoin.taux_decay * besoin.modificateur_decay * modificateur_nuit * game_delta
 		)
 		_check_etat_critique(campeur_id, besoin)
+	# EWMA satisfaction — moyenne glissante de tous les besoins (S4.5)
+	if not data.besoins.is_empty():
+		var somme := 0.0
+		for b in data.besoins.values():
+			somme += (b as BesoinData).valeur_actuelle
+		var satisfaction_courante := somme / float(data.besoins.size())
+		data.satisfaction_moyenne = data.satisfaction_moyenne * (1.0 - EWMA_ALPHA) + satisfaction_courante * EWMA_ALPHA
 	# Tick AI (S2.5)
 	if not _state_machines.has(campeur_id):
 		return
@@ -546,6 +564,81 @@ func _gerer_rencontre(id_a: String, id_b: String) -> void:
 		"nb_rencontres": affinite.nb_rencontres,
 		"timestamp": _elapsed_game_time,
 	})
+
+
+# S4.5 — Départ et avis
+
+func _verifier_departs() -> void:
+	for campeur_id in _registered_campeurs.duplicate():
+		if not GameData.campeurs.has(campeur_id):
+			continue
+		var data: CampeurData = GameData.campeurs[campeur_id]
+		if data.date_depart_prevue > 0.0 and _elapsed_game_time >= data.date_depart_prevue:
+			_gerer_depart(campeur_id)
+
+
+func _gerer_depart(campeur_id: String) -> void:
+	if not GameData.campeurs.has(campeur_id):
+		return
+	var data: CampeurData = GameData.campeurs[campeur_id]
+
+	var exigence := 0.5
+	if data.personnalite != null:
+		exigence = data.personnalite.exigence
+	var note := _calculer_note(data.satisfaction_moyenne, exigence)
+	var commentaire := _generer_commentaire(note)
+
+	data.note_finale = note
+	data.commentaire_final = commentaire
+
+	GameData.ajouter_avis({
+		"campeur_id": campeur_id,
+		"prenom": data.prenom,
+		"note": note,
+		"commentaire": commentaire,
+		"satisfaction_moyenne": data.satisfaction_moyenne,
+		"jour": _current_day,
+		"timestamp": _elapsed_game_time,
+	})
+
+	EventBus.emit("campeur.depart_avec_avis", {
+		"entite_id": campeur_id,
+		"note": note,
+		"commentaire": commentaire,
+		"satisfaction_moyenne": data.satisfaction_moyenne,
+		"timestamp": _elapsed_game_time,
+	})
+
+	# unregister avant queue_free : campeur._exit_tree() appellera unregister à nouveau (idempotent)
+	unregister_campeur(campeur_id)
+
+
+# TEST-ONLY: exposé pour les tests GUT
+# Seuils : >=0.8→5, >=0.6→4, >=0.4→3, >=0.2→2, <0.2→1
+# Note : à satisfaction=0.8 exactement, la formule round(x*5) donnerait 4 — on suit les seuils (→5) qui font foi.
+func _calculer_note(satisfaction: float, exigence: float) -> int:
+	var note: int = 1
+	if satisfaction >= 0.8:
+		note = 5
+	elif satisfaction >= 0.6:
+		note = 4
+	elif satisfaction >= 0.4:
+		note = 3
+	elif satisfaction >= 0.2:
+		note = 2
+	else:
+		note = 1
+	if exigence >= 0.7:
+		note = maxi(1, note - 1)
+	return note
+
+
+# TEST-ONLY: exposé pour les tests GUT
+func _generer_commentaire(note: int) -> String:
+	if not COMMENTAIRES.has(note):
+		return "Séjour sans commentaire."
+	var liste: Array = COMMENTAIRES[note]
+	return liste[randi() % liste.size()]
 
 
 func _calculer_compatibilite(pers_a: PersonnaliteData, pers_b: PersonnaliteData) -> float:

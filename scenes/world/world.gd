@@ -54,8 +54,13 @@ func _ready() -> void:
 	_setup_construction_menu()
 	_setup_hud()
 	_setup_settings_panel()
+	EventBus.subscribe("campeur.depart_avec_avis", _on_campeur_depart)
 	if debug_spawn_campeur:
 		_spawn_test_campeur()
+
+
+func _exit_tree() -> void:
+	EventBus.unsubscribe("campeur.depart_avec_avis", _on_campeur_depart)
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -296,6 +301,15 @@ func _confirm_placement() -> void:
 	if type_id != "chemin":
 		_preview.deactivate()
 		_placement_active = false
+
+
+func _on_campeur_depart(payload: Dictionary) -> void:
+	var campeur_id: String = payload.get("entite_id", "")
+	for campeur in _test_campeurs:
+		if campeur != null and campeur.campeur_id == campeur_id:
+			campeur.queue_free()
+			_test_campeurs.erase(campeur)
+			break
 
 
 func _cancel_placement() -> void:
