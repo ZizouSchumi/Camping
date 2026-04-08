@@ -5,15 +5,34 @@ const _EmoteDisplay := preload("res://scenes/campeurs/emote_display.gd")
 # Panneau fiche campeur — ouvert via UIManager.open("campeur_fiche", {"campeur_id": id})
 # Lecture seule : jamais de modification directe des données — UI read-only
 
+var _campeur_id: String = ""
+
+# Section identité
 var _label_prenom: Label
 var _label_age: Label
 var _label_genre: Label
 var _label_sejour: Label
+var _portrait_rect: TextureRect
+
+# Section humeur globale (S4.6)
+var _humeur_bar: ProgressBar
+var _humeur_label: Label
+var _humeur_stylebox: StyleBoxFlat  # Réutilisé entre refreshs pour éviter allocs continues
+
+# Section besoins
 var _besoins_container: VBoxContainer
+
+# Section personnalité
 var _section_personnalite: VBoxContainer
 var _axe_labels: Dictionary = {}  # axe_id → Label
-var _portrait_rect: TextureRect   # S2.7 — portrait campeur (couleur procédurale → S15 : image IA)
+
+# Section état émotionnel
 var _emote_label: Label
+
+# Section infos supplémentaires (S4.6)
+var _label_emplacement: Label
+var _label_satisfaction: Label
+var _label_note_prevision: Label
 
 
 func _ready() -> void:
@@ -21,7 +40,7 @@ func _ready() -> void:
 
 
 func _build_ui() -> void:
-	custom_minimum_size = Vector2(320.0, 500.0)
+	custom_minimum_size = Vector2(320.0, 520.0)
 
 	var margin := MarginContainer.new()
 	for side: String in ["margin_top", "margin_left", "margin_right", "margin_bottom"]:
@@ -29,7 +48,7 @@ func _build_ui() -> void:
 	add_child(margin)
 
 	var scroll := ScrollContainer.new()
-	scroll.custom_minimum_size = Vector2(304.0, 484.0)
+	scroll.custom_minimum_size = Vector2(304.0, 504.0)
 	margin.add_child(scroll)
 
 	var vbox := VBoxContainer.new()
@@ -68,6 +87,32 @@ func _build_ui() -> void:
 	_label_sejour = Label.new()
 	identite.add_child(_label_sejour)
 
+	# ── Section Humeur globale (S4.6) ──
+	var titre_humeur := Label.new()
+	titre_humeur.text = "─ Humeur ─"
+	vbox.add_child(titre_humeur)
+
+	var humeur_row := HBoxContainer.new()
+	vbox.add_child(humeur_row)
+
+	_humeur_bar = ProgressBar.new()
+	_humeur_bar.custom_minimum_size = Vector2(120.0, 18.0)
+	_humeur_bar.min_value = 0.0
+	_humeur_bar.max_value = 1.0
+	_humeur_bar.show_percentage = false
+	_humeur_stylebox = StyleBoxFlat.new()
+	_humeur_bar.add_theme_stylebox_override("fill", _humeur_stylebox)
+	humeur_row.add_child(_humeur_bar)
+
+	_humeur_label = Label.new()
+	_humeur_label.text = " Humeur : ☆☆☆☆☆"
+	humeur_row.add_child(_humeur_label)
+
+	# ── Infos séjour supplémentaires (S4.6) ──
+	_label_emplacement = _add_label(vbox, "Emplacement : —")
+	_label_satisfaction = _add_label(vbox, "Satisfaction : —")
+	_label_note_prevision = _add_label(vbox, "Note prévisionnelle : —")
+
 	# ── Section Besoins ──
 	var titre_besoins := Label.new()
 	titre_besoins.text = "─ Besoins ─"
@@ -104,6 +149,20 @@ func _build_ui() -> void:
 	# ── Placeholders enrichissement progressif ──
 	vbox.add_child(_make_placeholder("Journal de séjour (E05)", Vector2(0.0, 40.0)))
 
+	# ── Timer de refresh automatique (S4.6) ──
+	var timer := Timer.new()
+	timer.wait_time = 0.5
+	timer.autostart = true
+	timer.timeout.connect(_refresh)
+	add_child(timer)
+
+
+func _add_label(parent: Control, text: String) -> Label:
+	var lbl := Label.new()
+	lbl.text = text
+	parent.add_child(lbl)
+	return lbl
+
 
 func _make_placeholder(text: String, min_size: Vector2 = Vector2(0.0, 40.0)) -> Control:
 	var panel := Panel.new()
@@ -121,17 +180,93 @@ func _make_placeholder(text: String, min_size: Vector2 = Vector2(0.0, 40.0)) -> 
 
 
 func initialize(panel_data: Dictionary) -> void:
-	var campeur_id: String = panel_data.get("campeur_id", "")
-	if not GameData.campeurs.has(campeur_id):
-		push_error("CampeurFiche.initialize: campeur_id introuvable — " + campeur_id)
+	_campeur_id = panel_data.get("campeur_id", "")
+	if not GameData.campeurs.has(_campeur_id):
+		push_error("CampeurFiche.initialize: campeur_id introuvable — " + _campeur_id)
 		return
-	var data: CampeurData = GameData.campeurs[campeur_id]
+	var data: CampeurData = GameData.campeurs[_campeur_id]
 	if _portrait_rect != null:
 		_portrait_rect.texture = _generate_portrait(data)
 	_fill_identite(data)
-	_fill_besoins(data)
 	_fill_personnalite(data)
 	_fill_emote(data)
+	_refresh()
+	EventBus.subscribe("campeur.depart_avec_avis", _on_depart)
+	EventBus.subscribe("besoin.critique", _on_besoin_critique)
+
+
+func _exit_tree() -> void:
+	EventBus.unsubscribe("campeur.depart_avec_avis", _on_depart)
+	EventBus.unsubscribe("besoin.critique", _on_besoin_critique)
+
+
+func _on_depart(payload: Dictionary) -> void:
+	if _campeur_id != "" and payload.get("entite_id", "") == _campeur_id:
+		UIManager.close("campeur_fiche")
+
+
+func _on_besoin_critique(payload: Dictionary) -> void:
+	if payload.get("entite_id", "") == _campeur_id:
+		_refresh()
+
+
+func _refresh() -> void:
+	if _campeur_id == "" or not GameData.campeurs.has(_campeur_id):
+		return
+	var data: CampeurData = GameData.campeurs[_campeur_id]
+	_fill_besoins(data)
+	var humeur := _calculer_humeur(data)
+	_humeur_bar.value = humeur
+	var etat_humeur := "satisfait" if humeur >= 0.7 else ("moyen" if humeur >= 0.4 else "critique")
+	_apply_humeur_color(etat_humeur)
+	_humeur_label.text = " Humeur : " + _humeur_en_etoiles(humeur)
+	var eid := data.emplacement_id
+	_label_emplacement.text = "Emplacement : " + (eid if eid != "" else "Aucun")
+	_label_satisfaction.text = "Satisfaction : %d%%" % int(data.satisfaction_moyenne * 100.0)
+	var exigence := data.personnalite.exigence if data.personnalite != null else 0.5
+	_label_note_prevision.text = "Note prévisionnelle : %d/5" % NeedsSystem._calculer_note(
+		data.satisfaction_moyenne, exigence
+	)
+
+
+func _calculer_humeur(data: CampeurData) -> float:
+	if data.besoins.is_empty():
+		return 0.5
+	const POIDS: Dictionary = {"primaire": 1.0, "secondaire": 0.6, "tertiaire": 0.3}
+	var somme_ponderee := 0.0
+	var poids_total := 0.0
+	for besoin_id: String in data.besoins:
+		var besoin: BesoinData = data.besoins[besoin_id]
+		var poids: float = POIDS.get(besoin.niveau, 0.3)
+		somme_ponderee += besoin.valeur_actuelle * poids
+		poids_total += poids
+	if poids_total == 0.0:
+		return 0.5
+	return somme_ponderee / poids_total
+
+
+func _humeur_en_etoiles(humeur: float) -> String:
+	var etoiles := clampi(int(round(humeur * 5.0)), 1, 5)
+	return "★".repeat(etoiles) + "☆".repeat(5 - etoiles)
+
+
+func _apply_humeur_color(etat: String) -> void:
+	_humeur_stylebox.bg_color = _color_for_etat(etat)
+
+
+func _color_for_etat(etat: String) -> Color:
+	match etat:
+		"satisfait": return Color(0.20, 0.72, 0.30)  # vert
+		"moyen":     return Color(0.95, 0.80, 0.15)  # jaune
+		"eleve":     return Color(0.95, 0.50, 0.10)  # orange
+		"critique":  return Color(0.85, 0.15, 0.10)  # rouge
+	return Color(0.55, 0.55, 0.55)  # gris
+
+
+func _apply_bar_color(bar: ProgressBar, etat: String) -> void:
+	var style := StyleBoxFlat.new()
+	style.bg_color = _color_for_etat(etat)
+	bar.add_theme_stylebox_override("fill", style)
 
 
 func _generate_portrait(data: CampeurData) -> ImageTexture:
@@ -156,27 +291,52 @@ func _fill_identite(data: CampeurData) -> void:
 	if duree <= 0.0:
 		_label_sejour.text = "Durée inconnue"
 	else:
-		_label_sejour.text = str(ceili(duree)) + " jour(s)"
+		var jours := ceili(duree / SeasonManager.SECONDS_PER_DAY)
+		_label_sejour.text = str(jours) + " jour(s)"
 
 
 func _fill_besoins(data: CampeurData) -> void:
 	for child in _besoins_container.get_children():
 		child.queue_free()
 
-	var labels_niveaux: Dictionary = {"primaire": "Primaires", "secondaire": "Secondaires", "tertiaire": "Tertiaires"}
+	const LABELS_NIVEAUX: Dictionary = {"primaire": "Primaires", "secondaire": "Secondaires", "tertiaire": "Tertiaires"}
 	for niveau: String in ["primaire", "secondaire", "tertiaire"]:
-		var titre := Label.new()
-		titre.text = labels_niveaux[niveau]
-		titre.add_theme_font_size_override("font_size", 11)
-		_besoins_container.add_child(titre)
+		# Collecter d'abord les besoins du niveau — n'afficher le titre que s'il y en a
+		var besoins_du_niveau: Array[BesoinData] = []
+		var ids_du_niveau: Array[String] = []
 		for besoin_id: String in data.besoins:
 			var besoin: BesoinData = data.besoins[besoin_id]
-			if besoin.niveau != niveau:
-				continue
-			var pct := int(round(besoin.valeur_actuelle * 100.0))
-			var ligne := Label.new()
-			ligne.text = besoin_id + " : " + str(pct) + " % (" + besoin.get_etat() + ")"
-			_besoins_container.add_child(ligne)
+			if besoin.niveau == niveau:
+				besoins_du_niveau.append(besoin)
+				ids_du_niveau.append(besoin_id)
+		if besoins_du_niveau.is_empty():
+			continue
+
+		var titre := Label.new()
+		titre.text = LABELS_NIVEAUX[niveau]
+		titre.add_theme_font_size_override("font_size", 11)
+		_besoins_container.add_child(titre)
+
+		for i: int in range(besoins_du_niveau.size()):
+			var besoin: BesoinData = besoins_du_niveau[i]
+			var besoin_id: String = ids_du_niveau[i]
+
+			var row := HBoxContainer.new()
+			_besoins_container.add_child(row)
+
+			var bar := ProgressBar.new()
+			bar.custom_minimum_size = Vector2(80.0, 14.0)
+			bar.min_value = 0.0
+			bar.max_value = 1.0
+			bar.value = besoin.valeur_actuelle
+			bar.show_percentage = false
+			_apply_bar_color(bar, besoin.get_etat())
+			row.add_child(bar)
+
+			var lbl := Label.new()
+			lbl.text = " " + besoin_id + " (" + besoin.get_etat() + ")"
+			lbl.add_theme_font_size_override("font_size", 11)
+			row.add_child(lbl)
 
 
 func _fill_emote(data: CampeurData) -> void:

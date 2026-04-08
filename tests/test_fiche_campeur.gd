@@ -16,7 +16,7 @@ func before_each() -> void:
 	data.age = 45
 	data.genre = "homme"
 	data.date_arrivee = 0.0
-	data.date_depart_prevue = 7.0
+	data.date_depart_prevue = 7.0 * SeasonManager.SECONDS_PER_DAY
 	GameData.campeurs[_test_campeur_id] = data
 	NeedsSystem.register_campeur(_test_campeur_id)  # initialise besoins + personnalite
 
