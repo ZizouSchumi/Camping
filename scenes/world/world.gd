@@ -14,6 +14,7 @@ const CampeurScene := preload("res://scenes/campeurs/campeur.tscn")
 const IDGeneratorScript := preload("res://scripts/utils/id_generator.gd")
 const ConstructionMenuScript := preload("res://scenes/ui/construction/construction_menu.gd")
 const BatimentBaseScene := preload("res://scenes/batiments/batiment_base.tscn")
+const MilestonePopupScript := preload("res://scenes/ui/overlays/milestone_popup.gd")
 
 const BATIMENT_SCENES: Dictionary = {
 	"accueil":    "res://scenes/batiments/accueil.tscn",
@@ -44,6 +45,7 @@ var _batiments_node: Node2D            # conteneur pour les bâtiments placés
 var _chemin_drag_active: bool = false
 var _chemin_last_drag_cell: Vector2i = Vector2i(-1, -1)
 var _construction_menu  # ConstructionMenu — référence pour refresh budget
+var _overlay_layer: CanvasLayer        # layer=3 pour les popups milestones
 
 
 func _ready() -> void:
@@ -54,13 +56,18 @@ func _ready() -> void:
 	_setup_construction_menu()
 	_setup_hud()
 	_setup_settings_panel()
+	_setup_overlay_layer()
 	EventBus.subscribe("campeur.depart_avec_avis", _on_campeur_depart)
+	EventBus.subscribe("campeur.arrive", _on_campeur_arrive)
+	EventBus.subscribe("milestone.atteint", _on_milestone_atteint)
 	if debug_spawn_campeur:
 		_spawn_test_campeur()
 
 
 func _exit_tree() -> void:
 	EventBus.unsubscribe("campeur.depart_avec_avis", _on_campeur_depart)
+	EventBus.unsubscribe("campeur.arrive", _on_campeur_arrive)
+	EventBus.unsubscribe("milestone.atteint", _on_milestone_atteint)
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -292,6 +299,17 @@ func _confirm_placement() -> void:
 		"timestamp": SeasonManager.current_time,
 	})
 
+	# Exclure les chemins : un chemin n'est pas un "bâtiment" du point de vue du joueur
+	var batiments_hors_chemin := GameData.batiments.values().filter(
+		func(b: BatimentData) -> bool: return b.type_id != "chemin"
+	)
+	if batiments_hors_chemin.size() == 1 and GameData.verifier_milestone("premier_batiment"):
+		EventBus.emit("milestone.atteint", {
+			"entite_id": "world",
+			"milestone_id": "premier_batiment",
+			"timestamp": SeasonManager.current_time,
+		})
+
 	var cout: float = float(GameData.cout_construction_par_type.get(type_id, 0))
 	GameData.argent -= cout
 	if _construction_menu != null:
@@ -303,6 +321,16 @@ func _confirm_placement() -> void:
 		_placement_active = false
 
 
+func _on_campeur_arrive(payload: Dictionary) -> void:
+	if GameData.campeurs.size() == 1 and GameData.verifier_milestone("premier_campeur"):
+		EventBus.emit("milestone.atteint", {
+			"entite_id": "world",
+			"milestone_id": "premier_campeur",
+			"prenom": payload.get("prenom", ""),
+			"timestamp": SeasonManager.current_time,
+		})
+
+
 func _on_campeur_depart(payload: Dictionary) -> void:
 	var campeur_id: String = payload.get("entite_id", "")
 	for campeur in _test_campeurs:
@@ -310,6 +338,18 @@ func _on_campeur_depart(payload: Dictionary) -> void:
 			campeur.queue_free()
 			_test_campeurs.erase(campeur)
 			break
+
+	# size == 1 : uniquement le tout premier avis. Si le premier avis est < 3, ce milestone
+	# ne se déclenchera jamais — comportement intentionnel (on célèbre un succès, pas un échec).
+	if GameData.avis.size() == 1 and payload.get("note", 0) >= 3:
+		if GameData.verifier_milestone("premier_avis"):
+			EventBus.emit("milestone.atteint", {
+				"entite_id": "world",
+				"milestone_id": "premier_avis",
+				"note": payload.get("note", 0),
+				"commentaire": payload.get("commentaire", ""),
+				"timestamp": SeasonManager.current_time,
+			})
 
 
 func _cancel_placement() -> void:
@@ -324,3 +364,18 @@ func _setup_settings_panel() -> void:
 	panel.name = "SettingsPanel"
 	panel.visible = false
 	add_child(panel)
+
+
+func _setup_overlay_layer() -> void:
+	_overlay_layer = CanvasLayer.new()
+	_overlay_layer.name = "OverlayLayer"
+	_overlay_layer.layer = 3
+	add_child(_overlay_layer)
+
+
+func _on_milestone_atteint(payload: Dictionary) -> void:
+	MilestonePopupScript.show_for(
+		payload.get("milestone_id", ""),
+		payload,
+		_overlay_layer
+	)

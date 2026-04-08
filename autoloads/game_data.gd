@@ -14,6 +14,15 @@ var argent: float = 10000.0
 var cout_construction_par_type: Dictionary = {}
 const MAX_AVIS: int = 50
 
+@export var milestones_atteints: Dictionary = {}
+
+
+func verifier_milestone(milestone_id: String) -> bool:
+	if milestones_atteints.get(milestone_id, false):
+		return false  # Déjà atteint
+	milestones_atteints[milestone_id] = true
+	return true  # Première fois — déclencher la célébration
+
 
 func ajouter_avis(avis_dict: Dictionary) -> void:
 	avis.append(avis_dict)
